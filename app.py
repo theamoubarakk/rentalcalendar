@@ -78,28 +78,33 @@ with left:
 with right:
     st.markdown("### \U0001F4CC New Rental Entry")
 
+    # Live mascot selector outside the form
+    selected_live_mascot = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique(), key="live_selector")
+    mascot_row = inventory_df[inventory_df["Mascot_Name"] == selected_live_mascot].iloc[0]
+
+    # Show mascot details
+    st.markdown("### \U0001F4CB Mascot Details")
+    st.write(f"**Size:** {mascot_row['Size']}")
+    st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
+    st.write(f"**Height:** {mascot_row['Height_cm']} cm")
+    st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
+    st.write(f"**Rent Price:** ${mascot_row['Rent_Price']}")
+    st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
+    st.write(f"**Status:** {mascot_row['Status']}")
+
+    # Form for rental
     with st.form("rental_form"):
-        mascot_choice = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique())
         start_date = st.date_input("Start Date", value=datetime.today())
         end_date = st.date_input("End Date", value=datetime.today())
-
-        mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
-
-        st.markdown("### \U0001F4CB Mascot Details")
-        st.write(f"**Size:** {mascot_row['Size']}")
-        st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
-        st.write(f"**Height:** {mascot_row['Height_cm']} cm")
-        st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
-        st.write(f"**Rent Price:** ${mascot_row['Rent_Price']}")
-        st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
-        st.write(f"**Status:** {mascot_row['Status']}")
+        mascot_for_submission = st.selectbox("Confirm Mascot:", [selected_live_mascot], key="confirm_selector")
 
         submitted = st.form_submit_button("\U0001F4E9 Submit Rental")
 
         if submitted:
+            mascot_submit_row = inventory_df[inventory_df["Mascot_Name"] == mascot_for_submission].iloc[0]
             new_entry = pd.DataFrame([{
-                "ID": mascot_row["ID"],
-                "Mascot_Name": mascot_row["Mascot_Name"],
+                "ID": mascot_submit_row["ID"],
+                "Mascot_Name": mascot_submit_row["Mascot_Name"],
                 "Start_Date": pd.to_datetime(start_date),
                 "End_Date": pd.to_datetime(end_date)
             }])
