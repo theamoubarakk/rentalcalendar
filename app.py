@@ -1,61 +1,71 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
-# ---- Load data ----
+# ---- Load Master Data ----
 @st.cache_data
-def load_data():
+def load_mascot_data():
     return pd.read_excel("cleaned_rentals.xlsx")
 
-df = load_data()
+mascots_df = load_mascot_data()
 
-# ---- Sidebar: Filter ----
-st.sidebar.header("Filter Rental Status")
-status_filter = st.sidebar.selectbox("Show items with status:", ["All", "Available", "Rented", "Reserved"])
+# ---- Load or Create Rental Log ----
+def load_rental_log():
+    try:
+        return pd.read_excel("rental_log.xlsx")
+    except FileNotFoundError:
+        return pd.DataFrame(columns=[
+            "ID", "Timestamp", "Mascot_Name", "Start_Date", "End_Date",
+            "Size", "Weight_kg", "Height_cm", "Quantity",
+            "Rent_Price", "Sale_Price", "Status"
+        ])
 
-# Apply filter
-if status_filter != "All":
-    status_map = {
-        "Available": "✅ Available",
-        "Rented": "❌ Rented",
-        "Reserved": "⏳ Reserved"
-    }
-    df = df[df['Status'] == status_map[status_filter]]
+rental_log_df = load_rental_log()
 
-# ---- Main: Dashboard ----
-st.markdown("## 🧸 Baba Jina Mascot Rental Dashboard")
+# ---- Streamlit App ----
+st.title("🗓️ Baba Jina Mascot Rental Calendar")
 
-cols = st.columns(3)
-for i, row in df.iterrows():
-    with cols[i % 3]:
-        st.subheader(row['Mascot_Name'])
-        st.markdown(f"**Size:** {row['Size']}")
-        st.markdown(f"**Weight:** {row['Weight_kg']} kg")  # ✅ corrected column name
-        st.markdown(f"**Height:** {row['Height']} cm")
-        st.markdown(f"**Rent Price:** ${row['Rent Price']}")
-        st.markdown(f"**Status:** {row['Status']}")
-        st.markdown("---")
+# ---- Mascot Selection ----
+mascot_names = mascots_df["Mascot_Name"].unique()
+selected_mascot = st.selectbox("Select a mascot:", mascot_names)
 
-# ---- Section: Add New Rental Entry ----
-st.markdown("## ➕ Add New Rental Item")
+# ---- Date Range Selection ----
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("Start Date")
+with col2:
+    end_date = st.date_input("End Date")
 
-with st.form("rental_form"):
-    name = st.text_input("Mascot_Name")
-    size = st.selectbox("Size", ["S", "M", "L", "XL"])
-    weight = st.number_input("Weight (kg)", min_value=1)
-    height = st.number_input("Height (cm)", min_value=50)
-    price = st.number_input("Rent Price ($)", min_value=1)
-    status = st.selectbox("Status", ["✅ Available", "❌ Rented", "⏳ Reserved"])
+# ---- Auto-Fill Mascot Details ----
+mascot_info = mascots_df[mascots_df["Mascot_Name"] == selected_mascot].iloc[0]
 
-    submitted = st.form_submit_button("Add Rental")
-    if submitted:
-        new_entry = pd.DataFrame([{
-            "Mascot_Name": name,
-            "Size": size,
-            "Weight": weight,
-            "Height": height,
-            "Rent Price": price,
-            "Status": status
-        }])
-        df_updated = pd.concat([df, new_entry], ignore_index=True)
-        df_updated.to_excel("cleaned_rentals.xlsx", index=False)
-        st.success("✅ Rental item added! Please refresh the page to see changes.")
+st.markdown("### Mascot Details")
+st.write(f"**Size:** {mascot_info['Size']}")
+st.write(f"**Weight:** {mascot_info['Weight_kg']} kg")
+st.write(f"**Height:** {mascot_info['Height_cm']} cm")
+st.write(f"**Quantity Available:** {mascot_info['Quantity']}")
+st.write(f"**Rent Price:** ${mascot_info['Rent_Price']}")
+st.write(f"**Sale Price:** ${mascot_info['Sale_Price']}")
+st.write(f"**Status:** {mascot_info['Status']}")
+
+# ---- Submit Rental ----
+if st.button("📩 Submit Rental"):
+    new_id = rental_log_df["ID"].max() + 1 if not rental_log_df.empty else 1
+    new_rental = pd.DataFrame([{
+        "ID": new_id,
+        "Timestamp": datetime.now(),
+        "Mascot_Name": selected_mascot,
+        "Start_Date": start_date,
+        "End_Date": end_date,
+        "Size": mascot_info['Size'],
+        "Weight_kg": mascot_info['Weight_kg'],
+        "Height_cm": mascot_info['Height_cm'],
+        "Quantity": mascot_info['Quantity'],
+        "Rent_Price": mascot_info['Rent_Price'],
+        "Sale_Price": mascot_info['Sale_Price'],
+        "Status": mascot_info['Status']
+    }])
+
+    rental_log_df = pd.concat([rental_log_df, new_rental], ignore_index=True)
+    rental_log_df.to_excel("rental_log.xlsx", index=False)
+    st.success("✅ Rental submitted and logged!")
