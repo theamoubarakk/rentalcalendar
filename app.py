@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from datetime import datetime, timedelta
 import calendar
 
@@ -23,10 +22,10 @@ rental_log_df = load_rental_log()
 
 # ---- App Header ----
 st.set_page_config(layout="wide")
-st.title("\U0001F4C5 Baba Jina Mascot Rental Calendar")
+st.title("📅 Baba Jina Mascot Rental Calendar")
 
 # ---- Top Filters Row ----
-st.markdown("### \U0001F5D3️ Monthly Grid View")
+st.markdown("### 🗓️ Monthly Grid View")
 with st.container():
     col1, col2, col3 = st.columns([2, 2, 6])
     with col1:
@@ -76,38 +75,37 @@ with left:
                 cols[i].markdown(f"{bold}{calendar.day_name[i]} {day}{bold}\n{status}")
 
 with right:
-    st.markdown("### \U0001F4CC New Rental Entry")
+    st.markdown("### 📌 New Rental Entry")
 
-    # Live mascot selector outside the form
-    selected_live_mascot = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique(), key="live_selector")
-    mascot_row = inventory_df[inventory_df["Mascot_Name"] == selected_live_mascot].iloc[0]
-
-    # Show mascot details
-    st.markdown("### \U0001F4CB Mascot Details")
-    st.write(f"**Size:** {mascot_row['Size']}")
-    st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
-    st.write(f"**Height:** {mascot_row['Height_cm']} cm")
-    st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
-    st.write(f"**Rent Price:** ${mascot_row['Rent_Price']}")
-    st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
-    st.write(f"**Status:** {mascot_row['Status']}")
-
-    # Form for rental
     with st.form("rental_form"):
+        mascot_choice = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique())
         start_date = st.date_input("Start Date", value=datetime.today())
         end_date = st.date_input("End Date", value=datetime.today())
-        mascot_for_submission = st.selectbox("Confirm Mascot:", [selected_live_mascot], key="confirm_selector")
 
-        submitted = st.form_submit_button("\U0001F4E9 Submit Rental")
+        mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
+
+        # Handle NA for weight and height
+        weight_display = "N/A" if pd.isna(mascot_row["Weight_kg"]) else f"{mascot_row['Weight_kg']} kg"
+        height_display = "N/A" if pd.isna(mascot_row["Height_cm"]) else f"{mascot_row['Height_cm']} cm"
+
+        st.markdown("### 📋 Mascot Details")
+        st.write(f"**Size:** {mascot_row['Size']}")
+        st.write(f"**Weight:** {weight_display}")
+        st.write(f"**Height:** {height_display}")
+        st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
+        st.write(f"**Rent Price:** ${mascot_row['Rent_Price']}")
+        st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
+        st.write(f"**Status:** {mascot_row['Status']}")
+
+        submitted = st.form_submit_button("📩 Submit Rental")
 
         if submitted:
-            mascot_submit_row = inventory_df[inventory_df["Mascot_Name"] == mascot_for_submission].iloc[0]
             new_entry = pd.DataFrame([{
-                "ID": mascot_submit_row["ID"],
-                "Mascot_Name": mascot_submit_row["Mascot_Name"],
+                "ID": mascot_row["ID"],
+                "Mascot_Name": mascot_row["Mascot_Name"],
                 "Start_Date": pd.to_datetime(start_date),
                 "End_Date": pd.to_datetime(end_date)
             }])
             rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
             rental_log_df.to_excel("rental_log.xlsx", index=False)
-            st.success("\u2705 Rental submitted and logged!")
+            st.success("✅ Rental submitted and logged!")
