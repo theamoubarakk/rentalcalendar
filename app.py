@@ -27,7 +27,7 @@ st.markdown("## 🧸 Baba Jina Mascot Rental Dashboard")
 cols = st.columns(3)
 for i, row in df.iterrows():
     with cols[i % 3]:
-        st.subheader(row['Name'])
+        st.subheader(row['Mascot_Name'])
         st.markdown(f"**Size:** {row['Size']}")
         st.markdown(f"**Weight:** {row['Weight']} kg")
         st.markdown(f"**Height:** {row['Height']} cm")
@@ -39,7 +39,7 @@ for i, row in df.iterrows():
 st.markdown("## ➕ Add New Rental Item")
 
 with st.form("rental_form"):
-    name = st.text_input("Name")
+    name = st.text_input("Mascot_Name")
     size = st.selectbox("Size", ["S", "M", "L", "XL"])
     weight = st.number_input("Weight (kg)", min_value=1)
     height = st.number_input("Height (cm)", min_value=50)
@@ -49,7 +49,7 @@ with st.form("rental_form"):
     submitted = st.form_submit_button("Add Rental")
     if submitted:
         new_entry = pd.DataFrame([{
-            "Name": name,
+            "Mascot_Name": name,
             "Size": size,
             "Weight": weight,
             "Height": height,
