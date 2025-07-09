@@ -1,48 +1,51 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
 import plotly.express as px
+from datetime import datetime
 
-# Load mascot data
+# ---- Load base mascot inventory ----
 @st.cache_data
-def load_mascot_data():
+def load_inventory():
     return pd.read_excel("cleaned_rentals.xlsx")
 
-# Load rental log
+# ---- Load rental log ----
+@st.cache_data
 def load_rental_log():
     try:
         return pd.read_excel("rental_log.xlsx")
     except FileNotFoundError:
-        return pd.DataFrame(columns=["Mascot_Name", "Start_Date", "End_Date"])
+        return pd.DataFrame(columns=["ID", "Mascot_Name", "Start_Date", "End_Date"])
 
-mascots_df = load_mascot_data()
+inventory_df = load_inventory()
 rental_log_df = load_rental_log()
-
-# Page config
-st.set_page_config("Rental Calendar", layout="wide")
-st.title("📅 Baba Jina Mascot Rental Calendar")
 
 # ---- Sidebar Filters ----
 st.sidebar.header("📊 Filters")
-mascot_options = ["All"] + mascots_df["Mascot_Name"].dropna().unique().tolist()
-selected_mascot = st.sidebar.selectbox("Select Mascot", mascot_options)
+selected_mascot = st.sidebar.selectbox("Select Mascot", ["All"] + sorted(inventory_df["Mascot_Name"].unique()))
+start_filter = st.sidebar.date_input("Start Date Filter", value=datetime.today())
+end_filter = st.sidebar.date_input("End Date Filter", value=datetime.today())
 
-start_filter = st.sidebar.date_input("Start Date Filter", date(2025, 7, 1))
-end_filter = st.sidebar.date_input("End Date Filter", date(2025, 7, 31))
+# ---- Main Title ----
+st.title("📅 Baba Jina Mascot Rental Calendar")
+st.markdown("### 🗓️ Booking Calendar Overview")
 
-# ---- Booking Overview Calendar ----
-st.subheader("📆 Booking Calendar Overview")
+# ---- Filtered Calendar View ----
 filtered_log = rental_log_df.copy()
+
+# Convert date columns to datetime
+filtered_log["Start_Date"] = pd.to_datetime(filtered_log["Start_Date"], errors="coerce")
+filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coerce")
+
+# Apply filters
 if selected_mascot != "All":
     filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
 
 filtered_log = filtered_log[
-    pd.to_datetime(filtered_log["Start_Date"]) <= end_filter
-]
-filtered_log = filtered_log[
-    pd.to_datetime(filtered_log["End_Date"]) >= start_filter
+    (filtered_log["Start_Date"] <= end_filter) &
+    (filtered_log["End_Date"] >= start_filter)
 ]
 
+# ---- Calendar Gantt View ----
 if not filtered_log.empty:
     fig = px.timeline(
         filtered_log,
@@ -50,37 +53,41 @@ if not filtered_log.empty:
         x_end="End_Date",
         y="Mascot_Name",
         color="Mascot_Name",
-        title="Mascot Rental Timeline",
+        title="Rental Schedule",
     )
-    fig.update_layout(xaxis_title="Date", yaxis_title="Mascot", showlegend=False)
+    fig.update_yaxes(categoryorder="total ascending")
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("No rentals found for the selected filter range.")
+    st.info("No rentals in the selected period.")
 
 # ---- Booking Form ----
-st.subheader("🧸 Book a Mascot")
-mascot_choice = st.selectbox("Select a mascot:", mascots_df["Mascot_Name"].unique())
-start_date = st.date_input("Start Date", date.today())
-end_date = st.date_input("End Date", date.today())
+st.markdown("### 📌 New Rental Entry")
 
-if mascot_choice:
-    mascot_row = mascots_df[mascots_df["Mascot_Name"] == mascot_choice].iloc[0]
+with st.form("rental_form"):
+    mascot_choice = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique())
+    start_date = st.date_input("Start Date", value=datetime.today())
+    end_date = st.date_input("End Date", value=datetime.today())
+
+    mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
+
     st.markdown("### 📋 Mascot Details")
     st.write(f"**Size:** {mascot_row['Size']}")
     st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
-    st.write(f"**Height:** {mascot_row['Height_cm']} cm")
-    st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
-    st.write(f"**Rent Price:** ${mascot_row['Rent_Price']}")
-    st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
+    st.write(f"**Height:** {mascot_row['Height']} cm")
+    st.write(f"**Quantity Available:** {mascot_row['Quantity_Available']}")
+    st.write(f"**Rent Price:** ${mascot_row['Rent Price']}")
+    st.write(f"**Sale Price:** ${mascot_row['Sale Price']}")
     st.write(f"**Status:** {mascot_row['Status']}")
 
-    # Submit
-    if st.button("📌 Submit Rental"):
-        new_rental = {
-            "Mascot_Name": mascot_choice,
+    submitted = st.form_submit_button("📩 Submit Rental")
+
+    if submitted:
+        new_entry = pd.DataFrame([{
+            "ID": mascot_row["ID"],
+            "Mascot_Name": mascot_row["Mascot_Name"],
             "Start_Date": start_date,
             "End_Date": end_date
-        }
-        updated_log = pd.concat([rental_log_df, pd.DataFrame([new_rental])], ignore_index=True)
-        updated_log.to_excel("rental_log.xlsx", index=False)
+        }])
+        rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
+        rental_log_df.to_excel("rental_log.xlsx", index=False)
         st.success("✅ Rental submitted and logged!")
