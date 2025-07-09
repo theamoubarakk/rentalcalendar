@@ -8,8 +8,7 @@ import calendar
 def load_inventory():
     return pd.read_excel("cleaned_rentals.xlsx")
 
-# ---- Load rental log from Excel or create new one ----
-@st.cache_data
+# ---- Load rental log (DO NOT cache this!) ----
 def load_rental_log():
     try:
         return pd.read_excel("rental_log.xlsx")
@@ -110,3 +109,4 @@ with right:
                 rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
                 rental_log_df.to_excel("rental_log.xlsx", index=False)
                 st.success("✅ Rental submitted and logged!")
+                st.rerun()  # ← Force refresh
