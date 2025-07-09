@@ -21,7 +21,7 @@ inventory_df = load_inventory()
 rental_log_df = load_rental_log()
 
 # ---- Sidebar Filters ----
-st.sidebar.header("📊 Filters")
+st.sidebar.header("\U0001F4CA Filters")
 selected_mascot = st.sidebar.selectbox("Select Mascot", ["All"] + sorted(inventory_df["Mascot_Name"].unique()))
 start_filter = st.sidebar.date_input("Start Date Filter", value=datetime.today())
 end_filter = st.sidebar.date_input("End Date Filter", value=datetime.today())
@@ -31,8 +31,8 @@ start_filter = pd.to_datetime(start_filter)
 end_filter = pd.to_datetime(end_filter)
 
 # ---- Main Header ----
-st.title("📅 Baba Jina Mascot Rental Calendar")
-st.markdown("### 🗓️ Booking Calendar Overview")
+st.title("\U0001F4C5 Baba Jina Mascot Rental Calendar")
+st.markdown("### \U0001F5D3️ Booking Calendar Overview")
 
 # ---- Prepare rental log ----
 filtered_log = rental_log_df.copy()
@@ -64,27 +64,25 @@ else:
     st.info("No rentals in the selected period.")
 
 # ---- Booking Form ----
-st.markdown("### 📌 New Rental Entry")
+st.markdown("### \U0001F4CC New Rental Entry")
 
 with st.form("rental_form"):
     mascot_choice = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique())
     start_date = st.date_input("Start Date", value=datetime.today())
     end_date = st.date_input("End Date", value=datetime.today())
 
-    # Get mascot row
     mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
 
-    # Display mascot details
-    st.markdown("### 📋 Mascot Details")
+    st.markdown("### \U0001F4CB Mascot Details")
     st.write(f"**Size:** {mascot_row['Size']}")
     st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
-    st.write(f"**Height:** {mascot_row['Height']} cm")
-    st.write(f"**Quantity Available:** {mascot_row['Quantity_Available']}")
-    st.write(f"**Rent Price:** ${mascot_row['Rent Price']}")
-    st.write(f"**Sale Price:** ${mascot_row['Sale Price']}")
+    st.write(f"**Height:** {mascot_row['Height_cm']} cm")
+    st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
+    st.write(f"**Rent Price:** ${mascot_row['Rent_Price']}")
+    st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
     st.write(f"**Status:** {mascot_row['Status']}")
 
-    submitted = st.form_submit_button("📩 Submit Rental")
+    submitted = st.form_submit_button("\U0001F4E9 Submit Rental")
 
     if submitted:
         new_entry = pd.DataFrame([{
@@ -95,4 +93,4 @@ with st.form("rental_form"):
         }])
         rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
         rental_log_df.to_excel("rental_log.xlsx", index=False)
-        st.success("✅ Rental submitted and logged!")
+        st.success("\u2705 Rental submitted and logged!")
