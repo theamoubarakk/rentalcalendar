@@ -21,10 +21,10 @@ rental_log_df = load_rental_log()
 
 # ---- App Header ----
 st.set_page_config(layout="wide")
-st.title("\U0001F4C5 Baba Jina Mascot Rental Calendar")
+st.title("📅 Baba Jina Mascot Rental Calendar")
 
 # ---- Top Filters Row ----
-st.markdown("### \U0001F5D3\ufe0f Monthly Grid View")
+st.markdown("### 🗓️ Monthly Grid View")
 with st.container():
     col1, col2, col3 = st.columns([2, 2, 6])
     with col1:
@@ -61,21 +61,44 @@ calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
 left, right = st.columns([3, 2], gap="small")
 
 with left:
+    st.markdown("#### 📆 Aesthetic Calendar View")
+
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    header_cols = st.columns(7)
+    for i, day in enumerate(days):
+        header_cols[i].markdown(f"<div style='text-align:center; font-weight:bold;'>{day}</div>", unsafe_allow_html=True)
+
     for week in calendar.monthcalendar(month_filter.year, month_filter.month):
         cols = st.columns(7)
         for i, day in enumerate(week):
-            if day == 0:
-                cols[i].markdown("** **")
-            else:
-                date = datetime(month_filter.year, month_filter.month, day)
-                status = calendar_df[calendar_df["Date"] == date]["Status"].values[0]
-                is_today = date.date() == datetime.today().date()
-                bold = "**" if is_today else ""
-                cols[i].markdown(f"{bold}{calendar.day_name[i]} {day}{bold}\n{status}")
+            with cols[i]:
+                if day == 0:
+                    st.markdown("")
+                else:
+                    date = datetime(month_filter.year, month_filter.month, day)
+                    status = calendar_df[calendar_df["Date"] == date]["Status"].values[0]
+                    is_booked = "❌" in status
+                    bg_color = "#ffe6e6" if is_booked else "#e6ffea"
+                    icon = "❌" if is_booked else "✅"
+                    text = status.replace("✅ Available", "").replace("❌ Booked: ", "")
+
+                    st.markdown(f"""
+                        <div style='
+                            background-color:{bg_color}; 
+                            border-radius:10px; 
+                            padding:10px; 
+                            text-align:center; 
+                            box-shadow:0 2px 5px rgba(0,0,0,0.1);
+                            margin-bottom:8px;
+                            min-height:80px;'>
+                            <strong>{day}</strong><br>
+                            {icon} {text if text else "Available"}
+                        </div>
+                    """, unsafe_allow_html=True)
 
 with right:
     with st.container():
-        st.markdown("### \U0001F4CC New Rental Entry")
+        st.markdown("### 📌 New Rental Entry")
 
         with st.form("rental_form"):
             mascot_choice = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique())
@@ -88,7 +111,7 @@ with right:
             weight_display = "N/A" if pd.isna(mascot_row["Weight_kg"]) else f"{mascot_row['Weight_kg']} kg"
             height_display = "N/A" if pd.isna(mascot_row["Height_cm"]) else f"{mascot_row['Height_cm']} cm"
 
-            st.markdown("### \U0001F4CB Mascot Details")
+            st.markdown("### 📋 Mascot Details")
             st.write(f"**Size:** {mascot_row['Size']}")
             st.write(f"**Weight:** {weight_display}")
             st.write(f"**Height:** {height_display}")
@@ -97,7 +120,7 @@ with right:
             st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
             st.write(f"**Status:** {mascot_row['Status']}")
 
-            submitted = st.form_submit_button("\U0001F4E9 Submit Rental")
+            submitted = st.form_submit_button("📩 Submit Rental")
 
             if submitted:
                 new_entry = pd.DataFrame([{
@@ -108,12 +131,12 @@ with right:
                 }])
                 rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
                 rental_log_df.to_excel("rental_log.xlsx", index=False)
-                st.success("\u2705 Rental submitted and logged!")
+                st.success("✅ Rental submitted and logged!")
                 st.rerun()
 
     # ---- Delete Booking ----
     st.markdown("---")
-    st.markdown("### \U0001F5D1\ufe0f Delete Rental Booking")
+    st.markdown("### 🗑️ Delete Rental Booking")
 
     if rental_log_df.empty:
         st.info("No bookings to delete.")
