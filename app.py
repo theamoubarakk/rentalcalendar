@@ -21,18 +21,18 @@ def load_rental_log():
 inventory_df = load_inventory()
 rental_log_df = load_rental_log()
 
-# ---- Sidebar Filters ----
-st.sidebar.header("\U0001F4CA Filters")
-selected_mascot = st.sidebar.selectbox("Select Mascot", ["All"] + sorted(inventory_df["Mascot_Name"].unique()))
-start_filter = st.sidebar.date_input("Start Date Filter", value=datetime.today())
-end_filter = st.sidebar.date_input("End Date Filter", value=datetime.today())
-
-# ---- Convert filters to datetime ----
-start_filter = pd.to_datetime(start_filter)
-end_filter = pd.to_datetime(end_filter)
-
-# ---- Main Header ----
+# ---- App Header ----
+st.set_page_config(layout="wide")
 st.title("\U0001F4C5 Baba Jina Mascot Rental Calendar")
+
+# ---- Top Filters Row ----
+st.markdown("### \U0001F5D3️ Monthly Grid View")
+with st.container():
+    col1, col2, col3 = st.columns([2, 2, 6])
+    with col1:
+        selected_mascot = st.selectbox("Filter by Mascot:", ["All"] + sorted(inventory_df["Mascot_Name"].unique()))
+    with col2:
+        month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
 
 # ---- Prepare rental log ----
 filtered_log = rental_log_df.copy()
@@ -42,47 +42,40 @@ filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coer
 if selected_mascot != "All":
     filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
 
-filtered_log = filtered_log[
-    (filtered_log["Start_Date"] <= end_filter) &
-    (filtered_log["End_Date"] >= start_filter)
-]
+# ---- Generate Calendar Grid ----
+month_start = datetime(month_filter.year, month_filter.month, 1)
+last_day = calendar.monthrange(month_filter.year, month_filter.month)[1]
+month_end = datetime(month_filter.year, month_filter.month, last_day)
+date_range = pd.date_range(month_start, month_end)
 
-# ---- 2 Column Layout ----
-left_col, right_col = st.columns([2, 1])
+calendar_df = pd.DataFrame({"Date": date_range})
 
-# ---- Left: Calendar Grid View ----
-with left_col:
-    st.markdown("### \U0001F5D3 Monthly Grid View")
+def get_booking_status(date):
+    booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
+    if booked.empty:
+        return "✅ Available"
+    else:
+        return "❌ Booked: " + ", ".join(booked["Mascot_Name"].unique())
 
-    month_start = datetime(start_filter.year, start_filter.month, 1)
-    last_day = calendar.monthrange(start_filter.year, start_filter.month)[1]
-    month_end = datetime(start_filter.year, start_filter.month, last_day)
-    date_range = pd.date_range(month_start, month_end)
+calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
 
-    calendar_df = pd.DataFrame({"Date": date_range})
-    calendar_df["Day"] = calendar_df["Date"].dt.day_name()
+# ---- Layout: Calendar Grid + Rental Form ----
+left, right = st.columns([3, 2])
 
-    def get_booking_status(date):
-        booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
-        if booked.empty:
-            return "✅ Available"
-        else:
-            return "❌ Booked: " + ", ".join(booked["Mascot_Name"].unique())
-
-    calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
-
-    for week in calendar.monthcalendar(start_filter.year, start_filter.month):
+with left:
+    for week in calendar.monthcalendar(month_filter.year, month_filter.month):
         cols = st.columns(7)
         for i, day in enumerate(week):
             if day == 0:
                 cols[i].markdown("** **")
             else:
-                date = datetime(start_filter.year, start_filter.month, day)
+                date = datetime(month_filter.year, month_filter.month, day)
                 status = calendar_df[calendar_df["Date"] == date]["Status"].values[0]
-                cols[i].markdown(f"**{calendar.day_name[i]} {day}**\n{status}")
+                is_today = date.date() == datetime.today().date()
+                bold = "**" if is_today else ""
+                cols[i].markdown(f"{bold}{calendar.day_name[i]} {day}{bold}\n{status}")
 
-# ---- Right: Booking Form ----
-with right_col:
+with right:
     st.markdown("### \U0001F4CC New Rental Entry")
 
     with st.form("rental_form"):
