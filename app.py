@@ -1,62 +1,106 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from datetime import date
+import plotly.express as px
 
-# Load data
+# Load rental inventory
 @st.cache_data
-def load_data():
+def load_inventory():
     return pd.read_excel("cleaned_rentals.xlsx")
 
-@st.cache_data
+# Load rental log
 def load_log():
-    return pd.read_excel("rental_log.xlsx")
+    try:
+        log = pd.read_excel("rental_log.xlsx")
+        log["Start_Date"] = pd.to_datetime(log["Start_Date"])
+        log["End_Date"] = pd.to_datetime(log["End_Date"])
+        return log
+    except FileNotFoundError:
+        return pd.DataFrame(columns=["ID", "Mascot_Name", "Start_Date", "End_Date"])
 
-mascot_df = load_data()
+# Save new log
+def save_log(df):
+    df.to_excel("rental_log.xlsx", index=False)
+
+# App layout
+st.set_page_config("Baba Jina Mascot Rental Calendar", layout="wide")
+st.title("📅 Baba Jina Mascot Rental Calendar")
+
+# Load data
+df = load_inventory()
 log_df = load_log()
 
-# Sidebar filters
-st.sidebar.header("📊 Filters")
-selected_mascot = st.sidebar.selectbox("Select Mascot", ["All"] + list(mascot_df["Mascot_Name"].unique()))
-start_filter = st.sidebar.date_input("Start Date Filter", value=date(2025, 7, 1))
-end_filter = st.sidebar.date_input("End Date Filter", value=date(2025, 7, 31))
+# ---- Rental Form ----
+st.markdown("### 🎟️ Submit a Rental")
 
-# Filter rental logs
+mascot_options = df["Mascot_Name"].unique()
+selected_mascot = st.selectbox("Select a mascot:", mascot_options)
+start_date = st.date_input("Start Date", date.today())
+end_date = st.date_input("End Date", date.today())
+
+# Show mascot details
+mascot_row = df[df["Mascot_Name"] == selected_mascot].iloc[0]
+
+st.markdown("### 📋 Mascot Details")
+st.write(f"**Size:** {mascot_row['Size']}")
+st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
+st.write(f"**Height:** {mascot_row['Height']} cm")
+st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
+st.write(f"**Rent Price:** ${mascot_row['Rent Price']}")
+st.write(f"**Sale Price:** ${mascot_row['Sale Price']}")
+st.write(f"**Status:** {mascot_row['Status']}")
+
+# Rental submission
+if st.button("📮 Submit Rental"):
+    new_log = {
+        "ID": mascot_row["ID"],
+        "Mascot_Name": selected_mascot,
+        "Start_Date": start_date,
+        "End_Date": end_date
+    }
+    log_df = pd.concat([log_df, pd.DataFrame([new_log])], ignore_index=True)
+    save_log(log_df)
+    st.success("✅ Rental submitted and logged!")
+
+# ---- Rental History Filter ----
+st.sidebar.header("📊 Filters")
+filter_name = st.sidebar.selectbox("Select Mascot", ["All"] + list(df["Mascot_Name"].unique()))
+start_filter = st.sidebar.date_input("Start Date Filter", date(2025, 7, 1))
+end_filter = st.sidebar.date_input("End Date Filter", date(2025, 7, 31))
+
 filtered_log = log_df.copy()
-if selected_mascot != "All":
-    filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
+
+if filter_name != "All":
+    filtered_log = filtered_log[filtered_log["Mascot_Name"] == filter_name]
+
+# Convert date filter inputs to datetime
+start_filter = pd.to_datetime(start_filter)
+end_filter = pd.to_datetime(end_filter)
+
+# Filter by date range
 filtered_log = filtered_log[
     (filtered_log["Start_Date"] <= end_filter) &
     (filtered_log["End_Date"] >= start_filter)
 ]
 
-# Conflict warning
-if selected_mascot != "All":
-    mascot_row = mascot_df[mascot_df["Mascot_Name"] == selected_mascot].iloc[0]
-    quantity_available = mascot_row["Quantity Available"]
-    conflicts = len(filtered_log)
-    if conflicts >= quantity_available:
-        st.warning(f"⚠️ All units of '{selected_mascot}' are booked between {start_filter} and {end_filter}.")
+# Show log
+st.markdown("### 📘 Rental Log")
+st.dataframe(filtered_log)
 
-# Title
-st.markdown("## 🗓️ Rental Calendar Overview")
-
-# Calendar Plot
+# ---- Optional: Calendar Overview ----
+st.markdown("### 📆 Calendar Heatmap")
 if not filtered_log.empty:
-    fig = px.timeline(
-        filtered_log,
-        x_start="Start_Date",
-        x_end="End_Date",
-        y="Mascot_Name",
-        color="Status",
-        title="Rental Periods"
+    heatmap_df = filtered_log.copy()
+    heatmap_df["Start_Date"] = pd.to_datetime(heatmap_df["Start_Date"])
+    heatmap_df["count"] = 1
+    daily_count = heatmap_df.groupby("Start_Date").count()["count"].reset_index()
+    fig = px.density_heatmap(
+        daily_count,
+        x="Start_Date",
+        y="count",
+        nbinsx=30,
+        title="Rental Volume Over Time"
     )
-    fig.update_yaxes(categoryorder="total ascending")
-    fig.update_layout(height=500)
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("No rentals match your filters.")
-
-# Table view
-with st.expander("📋 View Rental Log Table"):
-    st.dataframe(filtered_log)
+    st.info("No rentals in selected range.")
