@@ -33,14 +33,12 @@ end_filter = pd.to_datetime(end_filter)
 
 # ---- Main Header ----
 st.title("\U0001F4C5 Baba Jina Mascot Rental Calendar")
-st.markdown("### \U0001F5D3️ Booking Calendar Overview")
 
 # ---- Prepare rental log ----
 filtered_log = rental_log_df.copy()
 filtered_log["Start_Date"] = pd.to_datetime(filtered_log["Start_Date"], errors="coerce")
 filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coerce")
 
-# ---- Apply filters ----
 if selected_mascot != "All":
     filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
 
@@ -49,68 +47,69 @@ filtered_log = filtered_log[
     (filtered_log["End_Date"] >= start_filter)
 ]
 
-# ---- Calendar Grid View ----
-st.markdown("### \\U0001F4C6 Monthly Grid View")
+# ---- 2 Column Layout ----
+left_col, right_col = st.columns([2, 1])
 
-# Generate calendar grid for the selected month
-month_start = datetime(start_filter.year, start_filter.month, 1)
-last_day = calendar.monthrange(start_filter.year, start_filter.month)[1]
-month_end = datetime(start_filter.year, start_filter.month, last_day)
-date_range = pd.date_range(month_start, month_end)
+# ---- Left: Calendar Grid View ----
+with left_col:
+    st.markdown("### \U0001F5D3 Monthly Grid View")
 
-# Build calendar matrix
-calendar_df = pd.DataFrame({"Date": date_range})
-calendar_df["Day"] = calendar_df["Date"].dt.day_name()
+    month_start = datetime(start_filter.year, start_filter.month, 1)
+    last_day = calendar.monthrange(start_filter.year, start_filter.month)[1]
+    month_end = datetime(start_filter.year, start_filter.month, last_day)
+    date_range = pd.date_range(month_start, month_end)
 
-# Create booking map
-def get_booking_status(date):
-    booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
-    if booked.empty:
-        return "✅ Available"
-    else:
-        return "❌ Booked: " + ", ".join(booked["Mascot_Name"].unique())
+    calendar_df = pd.DataFrame({"Date": date_range})
+    calendar_df["Day"] = calendar_df["Date"].dt.day_name()
 
-calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
-
-# Display grid view
-for week in calendar.monthcalendar(start_filter.year, start_filter.month):
-    cols = st.columns(7)
-    for i, day in enumerate(week):
-        if day == 0:
-            cols[i].markdown("** **")
+    def get_booking_status(date):
+        booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
+        if booked.empty:
+            return "✅ Available"
         else:
-            date = datetime(start_filter.year, start_filter.month, day)
-            status = calendar_df[calendar_df["Date"] == date]["Status"].values[0]
-            cols[i].markdown(f"**{calendar.day_name[i]} {day}**\n{status}")
+            return "❌ Booked: " + ", ".join(booked["Mascot_Name"].unique())
 
-# ---- Booking Form ----
-st.markdown("### \U0001F4CC New Rental Entry")
+    calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
 
-with st.form("rental_form"):
-    mascot_choice = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique())
-    start_date = st.date_input("Start Date", value=datetime.today())
-    end_date = st.date_input("End Date", value=datetime.today())
+    for week in calendar.monthcalendar(start_filter.year, start_filter.month):
+        cols = st.columns(7)
+        for i, day in enumerate(week):
+            if day == 0:
+                cols[i].markdown("** **")
+            else:
+                date = datetime(start_filter.year, start_filter.month, day)
+                status = calendar_df[calendar_df["Date"] == date]["Status"].values[0]
+                cols[i].markdown(f"**{calendar.day_name[i]} {day}**\n{status}")
 
-    mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
+# ---- Right: Booking Form ----
+with right_col:
+    st.markdown("### \U0001F4CC New Rental Entry")
 
-    st.markdown("### \U0001F4CB Mascot Details")
-    st.write(f"**Size:** {mascot_row['Size']}")
-    st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
-    st.write(f"**Height:** {mascot_row['Height_cm']} cm")
-    st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
-    st.write(f"**Rent Price:** ${mascot_row['Rent_Price']}")
-    st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
-    st.write(f"**Status:** {mascot_row['Status']}")
+    with st.form("rental_form"):
+        mascot_choice = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique())
+        start_date = st.date_input("Start Date", value=datetime.today())
+        end_date = st.date_input("End Date", value=datetime.today())
 
-    submitted = st.form_submit_button("\U0001F4E9 Submit Rental")
+        mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
 
-    if submitted:
-        new_entry = pd.DataFrame([{
-            "ID": mascot_row["ID"],
-            "Mascot_Name": mascot_row["Mascot_Name"],
-            "Start_Date": pd.to_datetime(start_date),
-            "End_Date": pd.to_datetime(end_date)
-        }])
-        rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
-        rental_log_df.to_excel("rental_log.xlsx", index=False)
-        st.success("\u2705 Rental submitted and logged!")
+        st.markdown("### \U0001F4CB Mascot Details")
+        st.write(f"**Size:** {mascot_row['Size']}")
+        st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
+        st.write(f"**Height:** {mascot_row['Height_cm']} cm")
+        st.write(f"**Quantity Available:** {mascot_row['Quantity']}")
+        st.write(f"**Rent Price:** ${mascot_row['Rent_Price']}")
+        st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
+        st.write(f"**Status:** {mascot_row['Status']}")
+
+        submitted = st.form_submit_button("\U0001F4E9 Submit Rental")
+
+        if submitted:
+            new_entry = pd.DataFrame([{
+                "ID": mascot_row["ID"],
+                "Mascot_Name": mascot_row["Mascot_Name"],
+                "Start_Date": pd.to_datetime(start_date),
+                "End_Date": pd.to_datetime(end_date)
+            }])
+            rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
+            rental_log_df.to_excel("rental_log.xlsx", index=False)
+            st.success("\u2705 Rental submitted and logged!")
