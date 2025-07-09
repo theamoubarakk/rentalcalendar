@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
+import calendar
 
 # ---- Load inventory from Excel ----
 @st.cache_data
@@ -48,20 +49,39 @@ filtered_log = filtered_log[
     (filtered_log["End_Date"] >= start_filter)
 ]
 
-# ---- Show calendar ----
-if not filtered_log.empty:
-    fig = px.timeline(
-        filtered_log,
-        x_start="Start_Date",
-        x_end="End_Date",
-        y="Mascot_Name",
-        color="Mascot_Name",
-        title="Rental Schedule"
-    )
-    fig.update_yaxes(categoryorder="total ascending")
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("No rentals in the selected period.")
+# ---- Calendar Grid View ----
+st.markdown("### \\U0001F4C6 Monthly Grid View")
+
+# Generate calendar grid for the selected month
+month_start = datetime(start_filter.year, start_filter.month, 1)
+last_day = calendar.monthrange(start_filter.year, start_filter.month)[1]
+month_end = datetime(start_filter.year, start_filter.month, last_day)
+date_range = pd.date_range(month_start, month_end)
+
+# Build calendar matrix
+calendar_df = pd.DataFrame({"Date": date_range})
+calendar_df["Day"] = calendar_df["Date"].dt.day_name()
+
+# Create booking map
+def get_booking_status(date):
+    booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
+    if booked.empty:
+        return "✅ Available"
+    else:
+        return "❌ Booked: " + ", ".join(booked["Mascot_Name"].unique())
+
+calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
+
+# Display grid view
+for week in calendar.monthcalendar(start_filter.year, start_filter.month):
+    cols = st.columns(7)
+    for i, day in enumerate(week):
+        if day == 0:
+            cols[i].markdown("** **")
+        else:
+            date = datetime(start_filter.year, start_filter.month, day)
+            status = calendar_df[calendar_df["Date"] == date]["Status"].values[0]
+            cols[i].markdown(f"**{calendar.day_name[i]} {day}**\n{status}")
 
 # ---- Booking Form ----
 st.markdown("### \U0001F4CC New Rental Entry")
