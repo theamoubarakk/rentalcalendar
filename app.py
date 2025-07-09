@@ -3,12 +3,12 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# ---- Load base mascot inventory ----
+# ---- Load inventory from Excel ----
 @st.cache_data
 def load_inventory():
     return pd.read_excel("cleaned_rentals.xlsx")
 
-# ---- Load rental log ----
+# ---- Load rental log from Excel or create new one ----
 @st.cache_data
 def load_rental_log():
     try:
@@ -16,32 +16,31 @@ def load_rental_log():
     except FileNotFoundError:
         return pd.DataFrame(columns=["ID", "Mascot_Name", "Start_Date", "End_Date"])
 
+# ---- Load Data ----
 inventory_df = load_inventory()
 rental_log_df = load_rental_log()
 
 # ---- Sidebar Filters ----
 st.sidebar.header("📊 Filters")
-selected_mascot = st.sidebar.selectbox("Select Mascot", ["All"] + sorted(inventory_df["Mascot_Name"].astype(str).unique()))
+selected_mascot = st.sidebar.selectbox("Select Mascot", ["All"] + sorted(inventory_df["Mascot_Name"].unique()))
 start_filter = st.sidebar.date_input("Start Date Filter", value=datetime.today())
 end_filter = st.sidebar.date_input("End Date Filter", value=datetime.today())
 
-# ---- Main Title ----
+# ---- Convert filters to datetime ----
+start_filter = pd.to_datetime(start_filter)
+end_filter = pd.to_datetime(end_filter)
+
+# ---- Main Header ----
 st.title("📅 Baba Jina Mascot Rental Calendar")
 st.markdown("### 🗓️ Booking Calendar Overview")
 
-# ---- Filtered Calendar View ----
+# ---- Prepare rental log ----
 filtered_log = rental_log_df.copy()
-
-# Convert date columns to datetime
 filtered_log["Start_Date"] = pd.to_datetime(filtered_log["Start_Date"], errors="coerce")
 filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coerce")
 
-# Fix mascot column type
-filtered_log["Mascot_Name"] = filtered_log["Mascot_Name"].astype(str)
-
-# Apply filters
+# ---- Apply filters ----
 if selected_mascot != "All":
-    selected_mascot = str(selected_mascot)
     filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
 
 filtered_log = filtered_log[
@@ -49,7 +48,7 @@ filtered_log = filtered_log[
     (filtered_log["End_Date"] >= start_filter)
 ]
 
-# ---- Calendar Gantt View ----
+# ---- Show calendar ----
 if not filtered_log.empty:
     fig = px.timeline(
         filtered_log,
@@ -57,7 +56,7 @@ if not filtered_log.empty:
         x_end="End_Date",
         y="Mascot_Name",
         color="Mascot_Name",
-        title="Rental Schedule",
+        title="Rental Schedule"
     )
     fig.update_yaxes(categoryorder="total ascending")
     st.plotly_chart(fig, use_container_width=True)
@@ -72,8 +71,10 @@ with st.form("rental_form"):
     start_date = st.date_input("Start Date", value=datetime.today())
     end_date = st.date_input("End Date", value=datetime.today())
 
+    # Get mascot row
     mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
 
+    # Display mascot details
     st.markdown("### 📋 Mascot Details")
     st.write(f"**Size:** {mascot_row['Size']}")
     st.write(f"**Weight:** {mascot_row['Weight_kg']} kg")
@@ -89,8 +90,8 @@ with st.form("rental_form"):
         new_entry = pd.DataFrame([{
             "ID": mascot_row["ID"],
             "Mascot_Name": mascot_row["Mascot_Name"],
-            "Start_Date": start_date,
-            "End_Date": end_date
+            "Start_Date": pd.to_datetime(start_date),
+            "End_Date": pd.to_datetime(end_date)
         }])
         rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
         rental_log_df.to_excel("rental_log.xlsx", index=False)
