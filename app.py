@@ -1,58 +1,3 @@
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-import calendar
-
-# ---- Load inventory from Excel ----
-@st.cache_data
-def load_inventory():
-    return pd.read_excel("cleaned_rentals.xlsx")
-
-# ---- Load rental log from Excel ----
-def load_rental_log():
-    try:
-        return pd.read_excel("rental_log.xlsx")
-    except FileNotFoundError:
-        return pd.DataFrame(columns=["ID", "Mascot_Name", "Start_Date", "End_Date"])
-
-# ---- Load Data ----
-inventory_df = load_inventory()
-rental_log_df = load_rental_log()
-
-# ---- App Header ----
-st.set_page_config(layout="wide")
-st.title("📅 Baba Jina Mascot Rental Calendar")
-
-# ---- Top Filters Row ----
-st.markdown("### 🗓️ Monthly Grid View")
-col1, col2, col3 = st.columns([2, 2, 6])
-with col1:
-    selected_mascot = st.selectbox("Filter by Mascot:", ["All"] + sorted(inventory_df["Mascot_Name"].unique()))
-with col2:
-    month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
-
-# ---- Prepare rental log ----
-filtered_log = rental_log_df.copy()
-filtered_log["Start_Date"] = pd.to_datetime(filtered_log["Start_Date"], errors="coerce")
-filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coerce")
-
-if selected_mascot != "All":
-    filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
-
-# ---- Generate Calendar Grid ----
-month_start = datetime(month_filter.year, month_filter.month, 1)
-last_day = calendar.monthrange(month_filter.year, month_filter.month)[1]
-date_range = pd.date_range(month_start, datetime(month_filter.year, month_filter.month, last_day))
-
-calendar_df = pd.DataFrame({"Date": date_range})
-def get_booking_status(date):
-    booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
-    if booked.empty:
-        return "✅ Available"
-    else:
-        return "❌ Booked: " + ", ".join(booked["Mascot_Name"].unique())
-calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
-
 # ---- Layout: Calendar Grid + Rental Form ----
 left, right = st.columns([3, 2], gap="small")
 
@@ -61,7 +6,7 @@ with left:
         cols = st.columns(7)
         for i, day in enumerate(week):
             if day == 0:
-                cols[i].markdown("* *")
+                cols[i].markdown("&nbsp;", unsafe_allow_html=True)
             else:
                 date = datetime(month_filter.year, month_filter.month, day)
                 status = calendar_df[calendar_df["Date"] == date]["Status"].values[0]
@@ -69,9 +14,20 @@ with left:
                 bold = "**" if is_today else ""
                 cols[i].markdown(f"{bold}{calendar.day_name[i]} {day}{bold}\n{status}")
 
+# 🚀 Put "New Rental Entry" high up, no padding at all
 with right:
-    # 🚀 Move everything up using tighter spacing
-    st.markdown("<div style='margin-top: -80px;'>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <style>
+        div[data-testid="column"] div:has(div[data-testid="stVerticalBlock"]) {
+            padding-top: 0rem !important;
+            margin-top: 0rem !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     st.markdown("### 📌 New Rental Entry")
 
     with st.form("rental_form"):
@@ -109,6 +65,7 @@ with right:
     # ---- Delete Booking ----
     st.markdown("---")
     st.markdown("### 🗑️ Delete Rental Booking")
+
     if rental_log_df.empty:
         st.info("No bookings to delete.")
     else:
@@ -124,4 +81,3 @@ with right:
                 rental_log_df.to_excel("rental_log.xlsx", index=False)
                 st.success("🗑️ Booking deleted successfully.")
                 st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
