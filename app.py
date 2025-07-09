@@ -8,7 +8,7 @@ import calendar
 def load_inventory():
     return pd.read_excel("cleaned_rentals.xlsx")
 
-# ---- Load rental log (DO NOT cache this!) ----
+# ---- Load rental log from Excel ----
 def load_rental_log():
     try:
         return pd.read_excel("rental_log.xlsx")
@@ -109,4 +109,28 @@ with right:
                 rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
                 rental_log_df.to_excel("rental_log.xlsx", index=False)
                 st.success("✅ Rental submitted and logged!")
-                st.rerun()  # ← Force refresh
+                st.rerun()
+
+    # ---- Delete Booking ----
+    st.markdown("---")
+    st.markdown("### 🗑️ Delete Rental Booking")
+
+    if rental_log_df.empty:
+        st.info("No bookings to delete.")
+    else:
+        delete_mascot = st.selectbox("Select a mascot to delete:", rental_log_df["Mascot_Name"].unique())
+        matching = rental_log_df[rental_log_df["Mascot_Name"] == delete_mascot]
+
+        delete_dates = matching.apply(lambda row: f"{row['Start_Date'].date()} to {row['End_Date'].date()}", axis=1)
+        selected_range = st.selectbox("Select booking to delete:", delete_dates)
+
+        if st.button("❌ Delete Booking"):
+            idx_to_delete = matching[
+                delete_dates == selected_range
+            ].index
+
+            if not idx_to_delete.empty:
+                rental_log_df = rental_log_df.drop(idx_to_delete)
+                rental_log_df.to_excel("rental_log.xlsx", index=False)
+                st.success("🗑️ Booking deleted successfully.")
+                st.rerun()
