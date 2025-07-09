@@ -21,10 +21,10 @@ rental_log_df = load_rental_log()
 
 # ---- App Header ----
 st.set_page_config(layout="wide")
-st.title("📅 Baba Jina Mascot Rental Calendar")
+st.title("\U0001F4C5 Baba Jina Mascot Rental Calendar")
 
 # ---- Top Filters Row ----
-st.markdown("### 🗓️ Monthly Grid View")
+st.markdown("### \U0001F5D3\ufe0f Monthly Grid View")
 with st.container():
     col1, col2, col3 = st.columns([2, 2, 6])
     with col1:
@@ -75,7 +75,7 @@ with left:
 
 with right:
     with st.container():
-        st.markdown("### 📌 New Rental Entry")
+        st.markdown("### \U0001F4CC New Rental Entry")
 
         with st.form("rental_form"):
             mascot_choice = st.selectbox("Select a mascot:", inventory_df["Mascot_Name"].unique())
@@ -88,7 +88,7 @@ with right:
             weight_display = "N/A" if pd.isna(mascot_row["Weight_kg"]) else f"{mascot_row['Weight_kg']} kg"
             height_display = "N/A" if pd.isna(mascot_row["Height_cm"]) else f"{mascot_row['Height_cm']} cm"
 
-            st.markdown("### 📋 Mascot Details")
+            st.markdown("### \U0001F4CB Mascot Details")
             st.write(f"**Size:** {mascot_row['Size']}")
             st.write(f"**Weight:** {weight_display}")
             st.write(f"**Height:** {height_display}")
@@ -97,7 +97,7 @@ with right:
             st.write(f"**Sale Price:** ${mascot_row['Sale_Price']}")
             st.write(f"**Status:** {mascot_row['Status']}")
 
-            submitted = st.form_submit_button("📩 Submit Rental")
+            submitted = st.form_submit_button("\U0001F4E9 Submit Rental")
 
             if submitted:
                 new_entry = pd.DataFrame([{
@@ -108,12 +108,12 @@ with right:
                 }])
                 rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
                 rental_log_df.to_excel("rental_log.xlsx", index=False)
-                st.success("✅ Rental submitted and logged!")
+                st.success("\u2705 Rental submitted and logged!")
                 st.rerun()
 
     # ---- Delete Booking ----
     st.markdown("---")
-    st.markdown("### 🗑️ Delete Rental Booking")
+    st.markdown("### \U0001F5D1\ufe0f Delete Rental Booking")
 
     if rental_log_df.empty:
         st.info("No bookings to delete.")
