@@ -29,7 +29,7 @@ for i, row in df.iterrows():
     with cols[i % 3]:
         st.subheader(row['Mascot_Name'])
         st.markdown(f"**Size:** {row['Size']}")
-        st.markdown(f"**Weight:** {row['Weight']} kg")
+        st.markdown(f"**Weight_kg:** {row['Weight_kg']} kg")
         st.markdown(f"**Height:** {row['Height']} cm")
         st.markdown(f"**Rent Price:** ${row['Rent Price']}")
         st.markdown(f"**Status:** {row['Status']}")
