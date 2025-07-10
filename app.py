@@ -57,11 +57,12 @@ def get_booking_status(date):
 
 calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
 
-# ---- Inject CSS to align right column to top ----
+# ---- Reliable CSS fix to move right column upward ----
 st.markdown("""
     <style>
-        div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlock"] {
-            margin-top: -60px !important;
+        div[data-testid="column"]:nth-of-type(2) {
+            align-self: start !important;
+            margin-top: -80px !important;
         }
     </style>
 """, unsafe_allow_html=True)
