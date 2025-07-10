@@ -156,12 +156,12 @@ ID,Picture,Mascot Name,Size,Kg,cm,pcs,Rent Price,Sale Price,"Status (Available, 
 @st.cache_data
 def load_and_clean_inventory():
     """
-    Loads data from the CSV string and renames columns to match the code's expectations.
-    This is the key fix for the dynamic details update.
+    Loads data from CSV, handles the BOM character, and cleans the data.
     """
-    df = pd.read_csv(io.StringIO(csv_data))
+    # --- KEY FIX: Use encoding='utf-8-sig' to handle the hidden BOM character ---
+    df = pd.read_csv(io.StringIO(csv_data), encoding='utf-8-sig')
     
-    # --- CRITICAL FIX: Rename columns to be consistent ---
+    # Rename columns for consistency and ease of use in the code
     df.rename(columns={
         'Mascot Name': 'Mascot_Name',
         'Kg': 'Weight_kg',
@@ -172,21 +172,25 @@ def load_and_clean_inventory():
         'Status (Available, Rented, Reserved, Under Repair)': 'Status'
     }, inplace=True)
     
-    # Clean up any leading/trailing whitespace from mascot names
-    if 'Mascot_Name' in df.columns:
-        df['Mascot_Name'] = df['Mascot_Name'].str.strip()
+    # Clean up any leading/trailing whitespace from important text columns
+    for col in ['Mascot_Name', 'Size', 'Status']:
+        if col in df.columns:
+            df[col] = df[col].str.strip()
     
-    # Drop rows where ID is NaN (often happens with empty rows at the end of a CSV)
+    # Drop empty rows that might exist at the end of the file
     df.dropna(subset=['ID'], inplace=True)
+    df = df[df['Mascot_Name'].notna() & (df['Mascot_Name'] != '')]
     
     return df
 
 def load_rental_log():
     try:
+        # For demonstration, we'll start with an empty log. In production, this would read a file.
         return pd.read_excel("rental_log.xlsx")
     except FileNotFoundError:
         return pd.DataFrame(columns=["ID", "Mascot_Name", "Start_Date", "End_Date"])
 
+# --- Load Data ---
 inventory_df = load_and_clean_inventory()
 rental_log_df = load_rental_log()
 
@@ -194,10 +198,10 @@ rental_log_df = load_rental_log()
 st.title("📅 Baba Jina Mascot Rental Calendar")
 
 if inventory_df.empty:
-    st.warning("Could not load inventory data. Please check the source.")
+    st.error("Could not load inventory data. Please check the source.")
     st.stop()
 
-# Create the two main columns for the entire layout.
+# --- Layout Definition ---
 left_col, right_col = st.columns([3, 2], gap="large")
 
 # ==============================================================================
@@ -205,7 +209,7 @@ left_col, right_col = st.columns([3, 2], gap="large")
 # ==============================================================================
 with left_col:
     st.markdown("### 🗓️ Monthly Calendar")
-
+    # (Calendar code remains the same as it was working correctly)
     filter_col1, filter_col2 = st.columns(2)
     with filter_col1:
         mascot_list = ["All"] + sorted(inventory_df["Mascot_Name"].unique())
@@ -213,7 +217,6 @@ with left_col:
     with filter_col2:
         month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
 
-    # --- Data Preparation for Calendar Display ---
     filtered_log = rental_log_df.copy()
     filtered_log["Start_Date"] = pd.to_datetime(filtered_log["Start_Date"], errors="coerce")
     filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coerce")
@@ -235,43 +238,32 @@ with left_col:
             return f"❌ {names}"
 
     calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
-    
     st.markdown("<hr style='margin-top: 0; margin-bottom: 1rem'>", unsafe_allow_html=True)
-
-    # --- Calendar Grid Display ---
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     header_cols = st.columns(7)
     for i, day in enumerate(days):
         header_cols[i].markdown(f"<div style='text-align:center; font-weight:bold;'>{day}</div>", unsafe_allow_html=True)
-
     for week in calendar.monthcalendar(month_filter.year, month_filter.month):
         cols = st.columns(7)
         for i, day in enumerate(week):
             with cols[i]:
-                if day == 0:
-                    st.markdown("")
-                else:
+                if day != 0:
                     date = datetime(month_filter.year, month_filter.month, day)
                     status = calendar_df.loc[calendar_df["Date"] == date, "Status"].iloc[0]
                     is_booked = "❌" in status
                     bg_color = "#f9e5e5" if is_booked else "#e6ffea"
-                    
-                    # Splitting logic to handle both "✅ Available" and "❌ Mascot Name"
-                    parts = status.split(" ", 1)
-                    icon = parts[0]
-                    text = parts[1] if len(parts) > 1 else ""
-
+                    icon, *text_parts = status.split(" ", 1)
+                    text = text_parts[0] if text_parts else ""
                     st.markdown(f"""
                         <div style='background-color:{bg_color}; border-radius:10px; padding:10px; text-align:center;
                                     box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:8px; min-height:80px;
                                     display: flex; flex-direction: column; justify-content: flex-start;'>
                             <strong style='margin-bottom: 5px;'>{day}</strong>
                             <div style='font-size: 0.9em; word-wrap: break-word;'>{icon} {text}</div>
-                        </div>
-                    """, unsafe_allow_html=True)
+                        </div>""", unsafe_allow_html=True)
 
 # ==============================================================================
-# RIGHT COLUMN: Forms for New Entry and Deletion
+# RIGHT COLUMN: All Forms
 # ==============================================================================
 with right_col:
     st.markdown("### 📌 New Rental Entry")
@@ -281,61 +273,49 @@ with right_col:
         start_date = st.date_input("Start Date", value=datetime.today())
         end_date = st.date_input("End Date", value=datetime.today())
 
-        # --- DYNAMIC MASCOT DETAILS (RESTORED) ---
+        # --- ACCURATE DYNAMIC MASCOT DETAILS ---
         mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
         
-        weight_display = "N/A" if pd.isna(mascot_row["Weight_kg"]) else f"{mascot_row['Weight_kg']} kg"
-        height_display = "N/A" if pd.isna(mascot_row["Height_cm"]) else f"{mascot_row['Height_cm']}"
+        # Prepare display strings, handling potential empty values gracefully
+        size_display = mascot_row.get('Size', 'N/A')
+        weight_display = f"{mascot_row['Weight_kg']} kg" if pd.notna(mascot_row.get('Weight_kg')) else 'N/A'
+        height_display = mascot_row.get('Height_cm', 'N/A')
+        quantity_display = int(mascot_row['Quantity']) if pd.notna(mascot_row.get('Quantity')) else 'N/A'
+        rent_price_display = f"${int(mascot_row['Rent_Price'])}" if pd.notna(mascot_row.get('Rent_Price')) else 'N/A'
+        sale_price_display = f"${int(mascot_row['Sale_Price'])}" if pd.notna(mascot_row.get('Sale_Price')) else 'N/A'
+        status_display = mascot_row.get('Status', 'N/A')
 
         st.markdown("### 📋 Mascot Details")
-        st.write(f"**Size:** {mascot_row.get('Size', 'N/A')}")
+        st.write(f"**Size:** {size_display}")
         st.write(f"**Weight:** {weight_display}")
         st.write(f"**Height:** {height_display}")
-        st.write(f"**Quantity Available:** {int(mascot_row.get('Quantity', 0))}")
-        st.write(f"**Rent Price:** ${mascot_row.get('Rent_Price', 'N/A')}")
-        st.write(f"**Sale Price:** ${mascot_row.get('Sale_Price', 'N/A')}")
-        st.write(f"**Status:** {mascot_row.get('Status', 'N/A')}")
+        st.write(f"**Quantity Available:** {quantity_display}")
+        st.write(f"**Rent Price:** {rent_price_display}")
+        st.write(f"**Sale Price:** {sale_price_display}")
+        st.write(f"**Status:** {status_display}")
         # --- END OF DETAILS SECTION ---
 
         submitted = st.form_submit_button("📩 Submit Rental")
 
         if submitted:
-            new_entry = pd.DataFrame([{
-                "ID": mascot_row["ID"],
-                "Mascot_Name": mascot_row["Mascot_Name"],
-                "Start_Date": pd.to_datetime(start_date),
-                "End_Date": pd.to_datetime(end_date)
-            }])
+            new_entry = pd.DataFrame([{"ID": mascot_row["ID"], "Mascot_Name": mascot_row["Mascot_Name"], "Start_Date": pd.to_datetime(start_date), "End_Date": pd.to_datetime(end_date)}])
             rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
             rental_log_df.to_excel("rental_log.xlsx", index=False)
             st.success("✅ Rental submitted and logged!")
             st.rerun()
 
-    # --- DELETE BOOKING SECTION (RESTORED) ---
+    # --- DELETE BOOKING SECTION ---
     st.markdown("---")
     st.markdown("### 🗑️ Delete Rental Booking")
 
     if rental_log_df.empty:
         st.info("No bookings to delete.")
     else:
-        # Create a unique identifier for each booking to avoid confusion
-        rental_log_df['display'] = rental_log_df.apply(
-            lambda row: f"{row['Mascot_Name']} ({row['Start_Date'].strftime('%Y-%m-%d')} to {row['End_Date'].strftime('%Y-%m-%d')})",
-            axis=1
-        )
-        
-        booking_to_delete = st.selectbox(
-            "Select booking to delete:",
-            rental_log_df['display'].unique()
-        )
-
+        rental_log_df['display'] = rental_log_df.apply(lambda row: f"{row['Mascot_Name']} ({row['Start_Date'].strftime('%Y-%m-%d')} to {row['End_Date'].strftime('%Y-%m-%d')})", axis=1)
+        booking_to_delete = st.selectbox("Select booking to delete:", rental_log_df['display'].unique())
         if st.button("❌ Delete Booking"):
-            # Find the index of the selected booking
             idx_to_delete = rental_log_df[rental_log_df['display'] == booking_to_delete].index
-            
-            # Drop the temporary display column before saving
             rental_log_df = rental_log_df.drop(columns=['display'])
-            
             if not idx_to_delete.empty:
                 rental_log_df = rental_log_df.drop(idx_to_delete)
                 rental_log_df.to_excel("rental_log.xlsx", index=False)
