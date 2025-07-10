@@ -57,6 +57,15 @@ def get_booking_status(date):
 
 calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
 
+# ---- Inject CSS to align right column to top ----
+st.markdown("""
+    <style>
+        div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlock"] {
+            margin-top: -60px !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # ---- Layout: Calendar Grid + Rental Form ----
 left, right = st.columns([3, 2], gap="small")
 
