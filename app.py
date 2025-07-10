@@ -7,7 +7,7 @@ import calendar
 st.set_page_config(layout="wide")
 
 @st.cache_data
-def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
+def load_inventory_from_excel(file_path="rentals.xlsx"):
     """
     Loads and cleans data directly from the specified Excel file.
     This is the most reliable method.
@@ -133,24 +133,38 @@ with right_col:
         # Get the full row for the selected mascot
         mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
 
+        # --- PREPARE DISPLAY STRINGS WITH "N/A" FOR EMPTY VALUES ---
+        
         # Helper function to format prices robustly
         def format_price(value):
             if pd.isna(value): return 'N/A'
             try:
-                # Attempt to convert to float then int to handle "125.0"
                 return f"${int(float(value))}"
             except (ValueError, TypeError):
-                # If it fails (e.g., text), return the original value as a string
                 return str(value)
+        
+        # Get values safely, preparing for display
+        size_val = mascot_row.get('Size')
+        weight_val = mascot_row.get('Weight_kg')
+        height_val = mascot_row.get('Height_cm')
+        quantity_val = mascot_row.get('Quantity')
+        status_val = mascot_row.get('Status')
 
+        # Create final display strings, replacing any NaN with 'N/A'
+        size_display = size_val if pd.notna(size_val) else 'N/A'
+        weight_display = f"{weight_val} kg" if pd.notna(weight_val) else 'N/A'
+        height_display = height_val if pd.notna(height_val) else 'N/A'
+        quantity_display = int(quantity_val) if pd.notna(quantity_val) else 'N/A'
+        status_display = status_val if pd.notna(status_val) else 'N/A'
+        
         st.markdown("### 📋 Mascot Details")
-        st.write(f"**Size:** {mascot_row.get('Size', 'N/A')}")
-        st.write(f"**Weight:** {mascot_row.get('Weight_kg', 'N/A')} kg")
-        st.write(f"**Height:** {mascot_row.get('Height_cm', 'N/A')}")
-        st.write(f"**Quantity:** {int(mascot_row.get('Quantity', 0))}")
+        st.write(f"**Size:** {size_display}")
+        st.write(f"**Weight:** {weight_display}")
+        st.write(f"**Height:** {height_display}")
+        st.write(f"**Quantity:** {quantity_display}")
         st.write(f"**Rent Price:** {format_price(mascot_row.get('Rent_Price'))}")
         st.write(f"**Sale Price:** {format_price(mascot_row.get('Sale_Price'))}")
-        st.write(f"**Status:** {mascot_row.get('Status', 'N/A')}")
+        st.write(f"**Status:** {status_display}")
 
         if st.form_submit_button("📩 Submit Rental"):
             new_entry_data = {
