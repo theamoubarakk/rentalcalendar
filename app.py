@@ -2,190 +2,70 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import calendar
-import io
 
-# --- Configuration and Data Loading ---
+# --- Configuration and Core Functions ---
 st.set_page_config(layout="wide")
 
-# This is the content you provided for rentals.csv
-csv_data = """
-ID,Picture,Mascot Name,Size,Kg,cm,pcs,Rent Price,Sale Price,"Status (Available, Rented, Reserved, Under Repair)"
-1,,Big white bear ,3m,8.5,40*40*40,1,60,400,Available
-2,,Pandas,3m,8.5,40*40*40,1,60,400,Available
-3,,Santa,2.6m,7,40*40*40,1,60,400,Available
-4,,Snowman,2.6m,7,40*40*40,1,60,400,Available
-5,,Elf,2.6m,6.5,40*40*40,1,60,400,Available
-6,,Bun red,2.6m,8,40*40*40,1,60,400,Available
-7,,Bun grey,2.6m,8,40*40*40,1,60,400,Available
-8,,Gorilla,3m,8,40*40*40,1,60,400,Available
-9,,Labubu Pink,2.6m,8,40*40*40,1,60,400,Available
-10,,Labubu Grey,2.6m,8,40*40*40,1,60,400,Available
-11,,Labubu Brown,2.6m,8,40*40*40,1,60,400,Available
-12,,Yellow Duck,2m,8,35*35*35,1,60,400,Available
-13,,Minnie Pink,1.8m,0.3,,4,20,125,Available
-14,,Mickey Mouse,1.8m,0.3,,4,20,125,Available
-15,,Minnie Red,1.8m,0.3,,4,20,125,Available
-16,,Moanna,1.8m,0.3,,2,20,125,Available
-17,,Ours Brun,1.8m,0.3,,2,20,125,Available
-18,,Oui Oui,1.8m,0.3,,2,20,125,Available
-19,,Frog,1.8m,0.3,,2,20,125,Available
-20,,Sheap,1.8m,0.3,,2,20,125,Available
-21,,Batman,1.8m,0.3,,2,20,125,Available
-22,,Superman,1.8m,0.3,,2,20,125,Available
-23,,Ironman,1.8m,0.3,,2,20,125,Available
-24,,Hulk,1.8m,0.3,,2,20,125,Available
-25,,Capten America,1.8m,0.3,,2,20,125,Available
-26,,Spiderman,1.8m,0.3,,2,20,125,Available
-27,,Brown Monkey,1.8m,0.3,,2,20,125,Available
-28,,LOL,1.8m,0.3,,2,20,125,Available
-29,,LOL 2,1.8m,0.3,,2,20,125,Available
-30,,LOL 3,1.8m,0.3,,2,20,125,Available
-31,,Troll Boy,1.8m,0.3,,2,20,125,Available
-32,,Troll Girl,1.8m,0.3,,2,20,125,Available
-33,,Teady Bear,1.8m,0.3,,2,20,125,Available
-34,,Chaperon Rouge,1.8m,0.3,,2,20,125,Available
-35,,Peroquet,1.8m,0.3,,2,20,125,Available
-36,,Heart,1.8m,0.3,,2,20,125,Available
-37,,Pink Penter,1.8m,0.3,,2,20,125,Available
-38,,Lady Bug,1.8m,0.3,,2,20,125,Available
-39,,Baby Shark Pink,1.8m,0.3,,1,20,125,Available
-40,,Baby Shark Blue,1.8m,0.3,,1,20,125,Available
-41,,Baby Shark Yellow,1.8m,0.3,,1,20,125,Available
-42,,Winnie the poo,1.8m,0.3,,2,20,125,Available
-43,,Clown,1.8m,0.3,,2,20,125,Available
-44,,Yellow Chick ,1.8m,0.3,,2,20,125,Available
-45,,Ginger Bread,1.8m,0.3,,2,20,125,Available
-46,,Sponge Bob,1.8m,0.3,,2,20,125,Available
-47,,Tchoupi,1.8m,0.3,,2,20,125,Available
-48,,Teletabies Red,1.8m,0.3,,1,20,125,Available
-49,,Teletabies Yellow,1.8m,0.3,,1,20,125,Available
-50,,Teletabies Green,1.8m,0.3,,1,20,125,Available
-51,,Teletabies Blue ,1.8m,0.3,,1,20,125,Available
-52,,Barney,1.8m,0.3,,2,20,125,Available
-53,,Green Dinosaur,1.8m,0.3,,2,20,125,Available
-54,,Charlotte Aux Fraises,1.8m,0.3,,2,20,125,Available
-55,,Grey Elephant,1.8m,0.3,,2,20,125,Available
-56,,Pandas,1.8m,0.3,,2,20,125,Available
-57,,Cinderella,1.8m,0.3,,2,20,125,Available
-58,,Belle,1.8m,0.3,,2,20,125,Available
-59,,Sophia,1.8m,0.3,,2,20,125,Available
-60,,Blanche Neige,1.8m,0.3,,2,20,125,Available
-61,,Unicorn white,1.8m,0.3,,1,20,125,Available
-62,,Unicorn pink,1.8m,0.3,,1,20,125,Available
-63,,PJ Mask Red,1.8m,0.3,,1,20,125,Available
-64,,PJ Mask Blue,1.8m,0.3,,1,20,125,Available
-65,,PJ Mask Green,1.8m,0.3,,1,20,125,Available
-66,,Donald Duck,1.8m,0.3,,2,20,125,Available
-67,,Daisy,1.8m,0.3,,2,20,125,Available
-68,,Michka,1.8m,0.3,,2,20,125,Available
-69,,Macha,1.8m,0.3,,2,20,125,Available
-70,,Smurfette,1.8m,0.3,,1,20,125,Available
-71,,Brown Lion,1.8m,0.3,,2,20,125,Available
-72,,Penguin,1.8m,0.3,,2,20,125,Available
-73,,Paw Patrol : Rubble,1.8m,0.3,,1,20,125,Available
-74,,Paw Patrol : Stella,1.8m,0.3,,1,20,125,Available
-75,,Paw Patrol : Chase,1.8m,0.3,,1,20,125,Available
-76,,Paw Patrol : Zuma,1.8m,0.3,,1,20,125,Available
-77,,Paw Patrol : Rocky,1.8m,0.3,,1,20,125,Available
-78,,Paw Patrol : Marshall,1.8m,0.3,,1,20,125,Available
-79,,Paw Patrol : Ridle,1.8m,0.3,,1,20,125,Available
-80,,Tom & Jerry,1.8m,0.3,,1,20,125,Available
-81,,Tom & Jerry 2,1.8m,0.3,,1,20,125,Available
-82,,Hello Kitty,1.8m,0.3,,2,20,125,Available
-83,,Bee,1.8m,0.3,,1,20,125,Available
-84,,Cow,1.8m,0.3,,1,20,125,Available
-85,,Elf,1.8m,0.3,,2,20,125,Available
-86,,Santa,1.8m,0.3,,2,20,125,Available
-87,,Snowman,1.8m,0.3,,2,20,125,Available
-88,,Rudolph,1.8m,0.3,,2,20,125,Available
-89,,Lapin Rose,1.8m,0.3,,1,20,125,Available
-90,,Lapin Blanc,1.8m,0.3,,1,20,125,Available
-91,,Lapin Gris,1.8m,0.3,,2,20,125,Available
-92,,Brown Horse,1.8m,0.3,,2,20,125,Available
-93,,Smurf,1.8m,0.3,,1,20,125,Available
-94,,Mario Cart,1.8m,0.3,,1,20,125,Available
-95,,Luigi,1.8m,0.3,,1,20,125,Available
-96,,Peppa Pig,1.8m,0.3,,1,20,125,Available
-97,,Georges Pig,1.8m,0.3,,1,20,125,Available
-98,,Mama Pig,1.8m,0.3,,1,20,125,Available
-99,,Papa Big,1.8m,0.3,,1,20,125,Available
-100,,Flower,1.8m,0.3,,2,20,125,Available
-101,,Astronaut,1.8m,0.3,,2,20,125,Available
-102,,Sponge Bob,1.8m,0.3,,2,20,125,Available
-103,,Baby Boy,1.8m,0.3,,1,20,125,Available
-104,,Baby Girl,1.8m,0.3,,1,20,125,Available
-105,,Sonic,1.8m,0.3,,2,20,125,Available
-106,,Coco Melon,1.8m,0.3,,2,20,125,Available
-107,,Huggy Waggy,1.8m,0.3,,1,20,125,Available
-108,,Kissy Missiy,1.8m,0.3,,1,20,125,Available
-109,,Jay Jay,1.8m,0.3,,2,20,125,Available
-110,,Sonic Red,1.8m,0.3,,2,20,125,Available
-111,,Rider,1.8m,0.3,,2,20,125,Available
-112,,Stitch Blue,1.8m,0.3,,2,20,125,Available
-113,,Stitch Pink,1.8m,0.3,,2,20,125,Available
-114,,Christmas Tree,1.8m,0.3,,2,20,125,Available
-115,"Angry Birds: Yellow",1.8m,0.3,,1,20,125,Available
-116,"Angry Birds: Red",1.8m,0.3,,1,20,125,Available
-117,"Angry Birds: Blue",1.8m,0.3,,1,20,125,Available
-118,"Angry Birds: Black",1.8m,0.3,,1,20,125,Available
-119,,Green Dinosaur,1.8m,0.3,,2,20,125,Available
-120,,Hot Dog,1.8m,0.3,,2,20,125,Available
-121,,Dora,1.8m,0.3,,2,20,125,Available
-122,,Lapin,3m,8.5,40*40*40,1,60,400,Available
-123,,Minions,1.8m,0.3,,2,20,125,Available
-124,,Pikabu,1.8m,0.3,,2,20,125,Available
-125,,Big Brown Bear ,3m,8.5,40*40*40,1,60,400,Available
-126,,Watermelon,1.8m,0.3,,2,20,125,Available
-127,,Snowman,1.8m,0.3,,2,20,125,Available
-128,,Olaf,1.8m,0.3,,1,20,125,Available
-129,,Elsa Frozen,1.8m,0.3,,2,20,125,Available
-130,,Dog,1.8m,0.3,,2,20,125,Available
-131,,Black Monkey,1.8m,0.3,,2,20,125,Available
-132,,Ninja Turtle,1.8m,0.3,,2,20,125,Available
-133,,Ninja Turtle 2,1.8m,0.3,,2,20,125,Available
-134,,Tiger,1.8m,0.3,,2,20,125,Available
-135,,Strawberry,1.8m,0.3,,2,20,125,Available
-136,,Anna Frozen ,1.8m,0.3,,2,20,125,Available
-137,,Pumkin,1.8m,0.3,,2,20,125,Available
-138,,Cupcake,1.8m,0.3,,2,20,125,Available
-139,,Neon party silver,1.8m,0.3,,2,20,125,Available
-140,,Neon party purple,1.8m,0.3,,2,20,125,Available
-141,,Neon party gold,1.8m,0.3,,2,20,125,Available
-"""
-
 @st.cache_data
-def load_and_clean_inventory():
-    df = pd.read_csv(io.StringIO(csv_data), encoding='utf-8-sig')
-    df.rename(columns={
-        'Mascot Name': 'Mascot_Name', 'Kg': 'Weight_kg', 'cm': 'Height_cm',
-        'pcs': 'Quantity', 'Rent Price': 'Rent_Price', 'Sale Price': 'Sale_Price',
+def load_inventory_from_excel(file_path="rentals.xlsx"):
+    """
+    Loads and cleans data directly from the specified Excel file.
+    This is the most reliable method.
+    """
+    try:
+        df = pd.read_excel(file_path)
+    except FileNotFoundError:
+        st.error(f"Error: The inventory file '{file_path}' was not found.")
+        st.info("Please make sure 'rentals.xlsx' is in the same directory as the app script.")
+        return pd.DataFrame() # Return empty DataFrame to prevent further errors
+    except Exception as e:
+        st.error(f"An error occurred while reading the Excel file: {e}")
+        return pd.DataFrame()
+
+    # Define the mapping from Excel column names to the names used in the code
+    column_mapping = {
+        'Mascot Name': 'Mascot_Name',
+        'Kg': 'Weight_kg',
+        'cm': 'Height_cm',
+        'pcs': 'Quantity',
+        'Rent Price': 'Rent_Price',
+        'Sale Price': 'Sale_Price',
         'Status (Available, Rented, Reserved, Under Repair)': 'Status'
-    }, inplace=True)
-    for col in ['Mascot_Name', 'Size', 'Status']:
-        if col in df.columns and df[col].dtype == 'object':
-            df[col] = df[col].str.strip()
+    }
+    df.rename(columns=column_mapping, inplace=True)
+
+    # Clean up data: remove whitespace and drop invalid rows
+    if 'Mascot_Name' in df.columns:
+        df['Mascot_Name'] = df['Mascot_Name'].str.strip()
+    
     df.dropna(subset=['ID', 'Mascot_Name'], inplace=True)
     df = df[df['Mascot_Name'] != '']
+    
     return df
 
-def load_rental_log():
+def load_rental_log(file_path="rental_log.xlsx"):
     try:
-        return pd.read_excel("rental_log.xlsx")
+        return pd.read_excel(file_path)
     except FileNotFoundError:
         return pd.DataFrame(columns=["ID", "Mascot_Name", "Start_Date", "End_Date"])
 
-inventory_df = load_and_clean_inventory()
+# --- Load Data ---
+inventory_df = load_inventory_from_excel()
 rental_log_df = load_rental_log()
 
+# --- Main App ---
 st.title("📅 Baba Jina Mascot Rental Calendar")
 
+# Stop the app if inventory failed to load
 if inventory_df.empty:
-    st.error("Could not load inventory data.")
     st.stop()
 
+# --- Layout Definition ---
 left_col, right_col = st.columns([3, 2], gap="large")
 
-# --- LEFT COLUMN (Calendar) ---
+# ==============================================================================
+# LEFT COLUMN: Calendar View and Controls
+# ==============================================================================
 with left_col:
     st.markdown("### 🗓️ Monthly Calendar")
     filter_col1, filter_col2 = st.columns(2)
@@ -195,44 +75,53 @@ with left_col:
     with filter_col2:
         month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
 
-    # Data prep for calendar
+    # Prepare data for calendar display
     filtered_log = rental_log_df.copy()
-    filtered_log["Start_Date"] = pd.to_datetime(filtered_log["Start_Date"], errors="coerce")
-    filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coerce")
-    if selected_mascot != "All":
-        filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
+    if not filtered_log.empty:
+        filtered_log["Start_Date"] = pd.to_datetime(filtered_log["Start_Date"], errors="coerce")
+        filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coerce")
+        if selected_mascot != "All":
+            filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
+
     month_start = datetime(month_filter.year, month_filter.month, 1)
     last_day = calendar.monthrange(month_filter.year, month_filter.month)[1]
     month_end = datetime(month_filter.year, month_filter.month, last_day)
-    date_range = pd.date_range(month_start, month_end)
+    date_range = pd.date_range(start=month_start, end=month_end)
     calendar_df = pd.DataFrame({"Date": date_range})
 
     def get_booking_status(date):
-        booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
-        return f"❌ {', '.join(booked['Mascot_Name'].unique())}" if not booked.empty else "✅ Available"
+        if not filtered_log.empty:
+            booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
+            if not booked.empty:
+                return f"❌ {', '.join(booked['Mascot_Name'].unique())}"
+        return "✅ Available"
+
     calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
     st.markdown("<hr style='margin-top: 0; margin-bottom: 1rem'>", unsafe_allow_html=True)
 
-    # Calendar display
+    # Display calendar grid
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     header_cols = st.columns(7)
-    for i, day in enumerate(days):
-        header_cols[i].markdown(f"<div style='text-align:center; font-weight:bold;'>{day}</div>", unsafe_allow_html=True)
+    for i, day_name in enumerate(days):
+        header_cols[i].markdown(f"<div style='text-align:center;font-weight:bold;'>{day_name}</div>", unsafe_allow_html=True)
+    
     for week in calendar.monthcalendar(month_filter.year, month_filter.month):
         cols = st.columns(7)
-        for i, day in enumerate(week):
-            if day != 0:
-                date = datetime(month_filter.year, month_filter.month, day)
+        for i, day_num in enumerate(week):
+            if day_num != 0:
+                date = datetime(month_filter.year, month_filter.month, day_num)
                 status = calendar_df.loc[calendar_df["Date"] == date, "Status"].iloc[0]
-                is_booked, bg_color = ("❌" in status, "#f9e5e5") if "❌" in status else (False, "#e6ffea")
+                bg_color = "#f9e5e5" if "❌" in status else "#e6ffea"
                 icon, *text = status.split(" ", 1)
                 cols[i].markdown(f"""
-                    <div style='background-color:{bg_color}; border-radius:10px; padding:10px; text-align:center;
-                                box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:8px; min-height:80px;'>
-                        <strong>{day}</strong><br><div style='font-size:0.9em;word-wrap:break-word;'>{icon} {text[0] if text else ''}</div>
+                    <div style='background-color:{bg_color};border-radius:10px;padding:10px;text-align:center;
+                                box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:8px;min-height:80px;'>
+                        <strong>{day_num}</strong><br><div style='font-size:0.9em;word-wrap:break-word;'>{icon} {text[0] if text else ''}</div>
                     </div>""", unsafe_allow_html=True)
 
-# --- RIGHT COLUMN (Forms) ---
+# ==============================================================================
+# RIGHT COLUMN: New Entry and Deletion Forms
+# ==============================================================================
 with right_col:
     st.markdown("### 📌 New Rental Entry")
 
@@ -241,45 +130,63 @@ with right_col:
         start_date = st.date_input("Start Date", value=datetime.today())
         end_date = st.date_input("End Date", value=datetime.today())
 
+        # Get the full row for the selected mascot
         mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
-        
-        # --- ROBUST PRICE FORMATTING HELPER FUNCTION ---
-        def format_price(price):
-            if pd.isna(price): return 'N/A'
+
+        # Helper function to format prices robustly
+        def format_price(value):
+            if pd.isna(value): return 'N/A'
             try:
-                return f"${int(float(price))}"
+                # Attempt to convert to float then int to handle "125.0"
+                return f"${int(float(value))}"
             except (ValueError, TypeError):
-                return str(price)
+                # If it fails (e.g., text), return the original value as a string
+                return str(value)
 
         st.markdown("### 📋 Mascot Details")
         st.write(f"**Size:** {mascot_row.get('Size', 'N/A')}")
         st.write(f"**Weight:** {mascot_row.get('Weight_kg', 'N/A')} kg")
         st.write(f"**Height:** {mascot_row.get('Height_cm', 'N/A')}")
-        st.write(f"**Quantity Available:** {int(mascot_row.get('Quantity', 0))}")
+        st.write(f"**Quantity:** {int(mascot_row.get('Quantity', 0))}")
         st.write(f"**Rent Price:** {format_price(mascot_row.get('Rent_Price'))}")
         st.write(f"**Sale Price:** {format_price(mascot_row.get('Sale_Price'))}")
         st.write(f"**Status:** {mascot_row.get('Status', 'N/A')}")
 
         if st.form_submit_button("📩 Submit Rental"):
-            new_entry = pd.DataFrame([{"ID": mascot_row["ID"], "Mascot_Name": mascot_row["Mascot_Name"], "Start_Date": pd.to_datetime(start_date), "End_Date": pd.to_datetime(end_date)}])
-            rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
-            rental_log_df.to_excel("rental_log.xlsx", index=False)
+            new_entry_data = {
+                "ID": mascot_row["ID"],
+                "Mascot_Name": mascot_row["Mascot_Name"],
+                "Start_Date": pd.to_datetime(start_date),
+                "End_Date": pd.to_datetime(end_date)
+            }
+            new_entry_df = pd.DataFrame([new_entry_data])
+            updated_log_df = pd.concat([rental_log_df, new_entry_df], ignore_index=True)
+            updated_log_df.to_excel("rental_log.xlsx", index=False)
             st.success("✅ Rental submitted and logged!")
             st.rerun()
 
-    # --- DELETE BOOKING SECTION ---
+    # --- Delete Booking Section ---
     st.markdown("---")
     st.markdown("### 🗑️ Delete Rental Booking")
     if rental_log_df.empty:
         st.info("No bookings to delete.")
     else:
-        rental_log_df['display'] = rental_log_df.apply(lambda r: f"{r['Mascot_Name']} ({r['Start_Date'].strftime('%Y-%m-%d')} to {r['End_Date'].strftime('%Y-%m-%d')})", axis=1)
+        # Create a display string for each booking for the selectbox
+        rental_log_df['display'] = rental_log_df.apply(
+            lambda row: f"{row['Mascot_Name']} ({row.get('Start_Date', pd.NaT).strftime('%Y-%m-%d')} to {row.get('End_Date', pd.NaT).strftime('%Y-%m-%d')})",
+            axis=1
+        )
         booking_to_delete = st.selectbox("Select booking to delete:", rental_log_df['display'].unique())
+        
         if st.button("❌ Delete Booking"):
-            idx_to_delete = rental_log_df[rental_log_df['display'] == booking_to_delete].index
-            rental_log_df = rental_log_df.drop(columns=['display'])
-            if not idx_to_delete.empty:
-                rental_log_df = rental_log_df.drop(idx_to_delete)
-                rental_log_df.to_excel("rental_log.xlsx", index=False)
+            # Find the index of the booking to delete
+            index_to_delete = rental_log_df[rental_log_df['display'] == booking_to_delete].index
+            
+            # Drop the temporary display column before saving
+            log_to_save = rental_log_df.drop(columns=['display'])
+            
+            if not index_to_delete.empty:
+                log_to_save = log_to_save.drop(index_to_delete)
+                log_to_save.to_excel("rental_log.xlsx", index=False)
                 st.success("🗑️ Booking deleted successfully.")
                 st.rerun()
