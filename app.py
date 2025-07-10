@@ -24,7 +24,7 @@ st.set_page_config(layout="wide")
 st.title("📅 Baba Jina Mascot Rental Calendar")
 
 # ---- Top Filters Row ----
-st.markdown("### 🗓️ Monthly Grid View")
+st.markdown("### 🗓️ Monthly Calendar")
 with st.container():
     col1, col2, col3 = st.columns([2, 2, 6])
     with col1:
