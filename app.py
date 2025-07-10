@@ -131,7 +131,6 @@ with right:
                 st.rerun()
 
 with left:
-    st.markdown("#### 📆 Aesthetic Calendar View")
 
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     header_cols = st.columns(7)
