@@ -7,7 +7,7 @@ import calendar
 st.set_page_config(layout="wide")
 
 @st.cache_data
-def load_inventory_from_excel(file_path="rentals.xlsx"):
+def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
     """
     Loads and cleans data directly from the specified Excel file.
     This is the most reliable method.
