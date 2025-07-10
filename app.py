@@ -2,17 +2,184 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import calendar
+import io
 
 # --- Configuration and Data Loading ---
 st.set_page_config(layout="wide")
 
+# This is the content you provided for rentals.csv
+csv_data = """
+ID,Picture,Mascot Name,Size,Kg,cm,pcs,Rent Price,Sale Price,"Status (Available, Rented, Reserved, Under Repair)"
+1,,Big white bear ,3m,8.5,40*40*40,1,60,400,Available
+2,,Pandas,3m,8.5,40*40*40,1,60,400,Available
+3,,Santa,2.6m,7,40*40*40,1,60,400,Available
+4,,Snowman,2.6m,7,40*40*40,1,60,400,Available
+5,,Elf,2.6m,6.5,40*40*40,1,60,400,Available
+6,,Bun red,2.6m,8,40*40*40,1,60,400,Available
+7,,Bun grey,2.6m,8,40*40*40,1,60,400,Available
+8,,Gorilla,3m,8,40*40*40,1,60,400,Available
+9,,Labubu Pink,2.6m,8,40*40*40,1,60,400,Available
+10,,Labubu Grey,2.6m,8,40*40*40,1,60,400,Available
+11,,Labubu Brown,2.6m,8,40*40*40,1,60,400,Available
+12,,Yellow Duck,2m,8,35*35*35,1,60,400,Available
+13,,Minnie Pink,1.8m,0.3,,4,20,125,Available
+14,,Mickey Mouse,1.8m,0.3,,4,20,125,Available
+15,,Minnie Red,1.8m,0.3,,4,20,125,Available
+16,,Moanna,1.8m,0.3,,2,20,125,Available
+17,,Ours Brun,1.8m,0.3,,2,20,125,Available
+18,,Oui Oui,1.8m,0.3,,2,20,125,Available
+19,,Frog,1.8m,0.3,,2,20,125,Available
+20,,Sheap,1.8m,0.3,,2,20,125,Available
+21,,Batman,1.8m,0.3,,2,20,125,Available
+22,,Superman,1.8m,0.3,,2,20,125,Available
+23,,Ironman,1.8m,0.3,,2,20,125,Available
+24,,Hulk,1.8m,0.3,,2,20,125,Available
+25,,Capten America,1.8m,0.3,,2,20,125,Available
+26,,Spiderman,1.8m,0.3,,2,20,125,Available
+27,,Brown Monkey,1.8m,0.3,,2,20,125,Available
+28,,LOL,1.8m,0.3,,2,20,125,Available
+29,,LOL 2,1.8m,0.3,,2,20,125,Available
+30,,LOL 3,1.8m,0.3,,2,20,125,Available
+31,,Troll Boy,1.8m,0.3,,2,20,125,Available
+32,,Troll Girl,1.8m,0.3,,2,20,125,Available
+33,,Teady Bear,1.8m,0.3,,2,20,125,Available
+34,,Chaperon Rouge,1.8m,0.3,,2,20,125,Available
+35,,Peroquet,1.8m,0.3,,2,20,125,Available
+36,,Heart,1.8m,0.3,,2,20,125,Available
+37,,Pink Penter,1.8m,0.3,,2,20,125,Available
+38,,Lady Bug,1.8m,0.3,,2,20,125,Available
+39,,Baby Shark Pink,1.8m,0.3,,1,20,125,Available
+40,,Baby Shark Blue,1.8m,0.3,,1,20,125,Available
+41,,Baby Shark Yellow,1.8m,0.3,,1,20,125,Available
+42,,Winnie the poo,1.8m,0.3,,2,20,125,Available
+43,,Clown,1.8m,0.3,,2,20,125,Available
+44,,Yellow Chick ,1.8m,0.3,,2,20,125,Available
+45,,Ginger Bread,1.8m,0.3,,2,20,125,Available
+46,,Sponge Bob,1.8m,0.3,,2,20,125,Available
+47,,Tchoupi,1.8m,0.3,,2,20,125,Available
+48,,Teletabies Red,1.8m,0.3,,1,20,125,Available
+49,,Teletabies Yellow,1.8m,0.3,,1,20,125,Available
+50,,Teletabies Green,1.8m,0.3,,1,20,125,Available
+51,,Teletabies Blue ,1.8m,0.3,,1,20,125,Available
+52,,Barney,1.8m,0.3,,2,20,125,Available
+53,,Green Dinosaur,1.8m,0.3,,2,20,125,Available
+54,,Charlotte Aux Fraises,1.8m,0.3,,2,20,125,Available
+55,,Grey Elephant,1.8m,0.3,,2,20,125,Available
+56,,Pandas,1.8m,0.3,,2,20,125,Available
+57,,Cinderella,1.8m,0.3,,2,20,125,Available
+58,,Belle,1.8m,0.3,,2,20,125,Available
+59,,Sophia,1.8m,0.3,,2,20,125,Available
+60,,Blanche Neige,1.8m,0.3,,2,20,125,Available
+61,,Unicorn white,1.8m,0.3,,1,20,125,Available
+62,,Unicorn pink,1.8m,0.3,,1,20,125,Available
+63,,PJ Mask Red,1.8m,0.3,,1,20,125,Available
+64,,PJ Mask Blue,1.8m,0.3,,1,20,125,Available
+65,,PJ Mask Green,1.8m,0.3,,1,20,125,Available
+66,,Donald Duck,1.8m,0.3,,2,20,125,Available
+67,,Daisy,1.8m,0.3,,2,20,125,Available
+68,,Michka,1.8m,0.3,,2,20,125,Available
+69,,Macha,1.8m,0.3,,2,20,125,Available
+70,,Smurfette,1.8m,0.3,,1,20,125,Available
+71,,Brown Lion,1.8m,0.3,,2,20,125,Available
+72,,Penguin,1.8m,0.3,,2,20,125,Available
+73,,Paw Patrol : Rubble,1.8m,0.3,,1,20,125,Available
+74,,Paw Patrol : Stella,1.8m,0.3,,1,20,125,Available
+75,,Paw Patrol : Chase,1.8m,0.3,,1,20,125,Available
+76,,Paw Patrol : Zuma,1.8m,0.3,,1,20,125,Available
+77,,Paw Patrol : Rocky,1.8m,0.3,,1,20,125,Available
+78,,Paw Patrol : Marshall,1.8m,0.3,,1,20,125,Available
+79,,Paw Patrol : Ridle,1.8m,0.3,,1,20,125,Available
+80,,Tom & Jerry,1.8m,0.3,,1,20,125,Available
+81,,Tom & Jerry 2,1.8m,0.3,,1,20,125,Available
+82,,Hello Kitty,1.8m,0.3,,2,20,125,Available
+83,,Bee,1.8m,0.3,,1,20,125,Available
+84,,Cow,1.8m,0.3,,1,20,125,Available
+85,,Elf,1.8m,0.3,,2,20,125,Available
+86,,Santa,1.8m,0.3,,2,20,125,Available
+87,,Snowman,1.8m,0.3,,2,20,125,Available
+88,,Rudolph,1.8m,0.3,,2,20,125,Available
+89,,Lapin Rose,1.8m,0.3,,1,20,125,Available
+90,,Lapin Blanc,1.8m,0.3,,1,20,125,Available
+91,,Lapin Gris,1.8m,0.3,,2,20,125,Available
+92,,Brown Horse,1.8m,0.3,,2,20,125,Available
+93,,Smurf,1.8m,0.3,,1,20,125,Available
+94,,Mario Cart,1.8m,0.3,,1,20,125,Available
+95,,Luigi,1.8m,0.3,,1,20,125,Available
+96,,Peppa Pig,1.8m,0.3,,1,20,125,Available
+97,,Georges Pig,1.8m,0.3,,1,20,125,Available
+98,,Mama Pig,1.8m,0.3,,1,20,125,Available
+99,,Papa Big,1.8m,0.3,,1,20,125,Available
+100,,Flower,1.8m,0.3,,2,20,125,Available
+101,,Astronaut,1.8m,0.3,,2,20,125,Available
+102,,Sponge Bob,1.8m,0.3,,2,20,125,Available
+103,,Baby Boy,1.8m,0.3,,1,20,125,Available
+104,,Baby Girl,1.8m,0.3,,1,20,125,Available
+105,,Sonic,1.8m,0.3,,2,20,125,Available
+106,,Coco Melon,1.8m,0.3,,2,20,125,Available
+107,,Huggy Waggy,1.8m,0.3,,1,20,125,Available
+108,,Kissy Missiy,1.8m,0.3,,1,20,125,Available
+109,,Jay Jay,1.8m,0.3,,2,20,125,Available
+110,,Sonic Red,1.8m,0.3,,2,20,125,Available
+111,,Rider,1.8m,0.3,,2,20,125,Available
+112,,Stitch Blue,1.8m,0.3,,2,20,125,Available
+113,,Stitch Pink,1.8m,0.3,,2,20,125,Available
+114,,Christmas Tree,1.8m,0.3,,2,20,125,Available
+115,"Angry Birds: Yellow",1.8m,0.3,,1,20,125,Available
+116,"Angry Birds: Red",1.8m,0.3,,1,20,125,Available
+117,"Angry Birds: Blue",1.8m,0.3,,1,20,125,Available
+118,"Angry Birds: Black",1.8m,0.3,,1,20,125,Available
+119,,Green Dinosaur,1.8m,0.3,,2,20,125,Available
+120,,Hot Dog,1.8m,0.3,,2,20,125,Available
+121,,Dora,1.8m,0.3,,2,20,125,Available
+122,,Lapin,3m,8.5,40*40*40,1,60,400,Available
+123,,Minions,1.8m,0.3,,2,20,125,Available
+124,,Pikabu,1.8m,0.3,,2,20,125,Available
+125,,Big Brown Bear ,3m,8.5,40*40*40,1,60,400,Available
+126,,Watermelon,1.8m,0.3,,2,20,125,Available
+127,,Snowman,1.8m,0.3,,2,20,125,Available
+128,,Olaf,1.8m,0.3,,1,20,125,Available
+129,,Elsa Frozen,1.8m,0.3,,2,20,125,Available
+130,,Dog,1.8m,0.3,,2,20,125,Available
+131,,Black Monkey,1.8m,0.3,,2,20,125,Available
+132,,Ninja Turtle,1.8m,0.3,,2,20,125,Available
+133,,Ninja Turtle 2,1.8m,0.3,,2,20,125,Available
+134,,Tiger,1.8m,0.3,,2,20,125,Available
+135,,Strawberry,1.8m,0.3,,2,20,125,Available
+136,,Anna Frozen ,1.8m,0.3,,2,20,125,Available
+137,,Pumkin,1.8m,0.3,,2,20,125,Available
+138,,Cupcake,1.8m,0.3,,2,20,125,Available
+139,,Neon party silver,1.8m,0.3,,2,20,125,Available
+140,,Neon party purple,1.8m,0.3,,2,20,125,Available
+141,,Neon party gold,1.8m,0.3,,2,20,125,Available
+"""
+
 @st.cache_data
-def load_inventory():
-    try:
-        return pd.read_excel("cleaned_rentals.xlsx")
-    except FileNotFoundError:
-        st.error("Error: 'cleaned_rentals.xlsx' not found. Please add the inventory file.")
-        return pd.DataFrame()
+def load_and_clean_inventory():
+    """
+    Loads data from the CSV string and renames columns to match the code's expectations.
+    This is the key fix for the dynamic details update.
+    """
+    df = pd.read_csv(io.StringIO(csv_data))
+    
+    # --- CRITICAL FIX: Rename columns to be consistent ---
+    df.rename(columns={
+        'Mascot Name': 'Mascot_Name',
+        'Kg': 'Weight_kg',
+        'cm': 'Height_cm',
+        'pcs': 'Quantity',
+        'Rent Price': 'Rent_Price',
+        'Sale Price': 'Sale_Price',
+        'Status (Available, Rented, Reserved, Under Repair)': 'Status'
+    }, inplace=True)
+    
+    # Clean up any leading/trailing whitespace from mascot names
+    if 'Mascot_Name' in df.columns:
+        df['Mascot_Name'] = df['Mascot_Name'].str.strip()
+    
+    # Drop rows where ID is NaN (often happens with empty rows at the end of a CSV)
+    df.dropna(subset=['ID'], inplace=True)
+    
+    return df
 
 def load_rental_log():
     try:
@@ -20,28 +187,25 @@ def load_rental_log():
     except FileNotFoundError:
         return pd.DataFrame(columns=["ID", "Mascot_Name", "Start_Date", "End_Date"])
 
-inventory_df = load_inventory()
+inventory_df = load_and_clean_inventory()
 rental_log_df = load_rental_log()
 
 # --- Main App ---
 st.title("📅 Baba Jina Mascot Rental Calendar")
 
-# Exit early if inventory is not loaded to prevent errors
 if inventory_df.empty:
-    st.warning("Cannot display calendar because inventory is missing.")
+    st.warning("Could not load inventory data. Please check the source.")
     st.stop()
 
-# Create the two main columns for the entire layout below the title.
+# Create the two main columns for the entire layout.
 left_col, right_col = st.columns([3, 2], gap="large")
 
-
 # ==============================================================================
-# LEFT COLUMN: Contains all calendar-related elements
+# LEFT COLUMN: Calendar and its controls
 # ==============================================================================
 with left_col:
     st.markdown("### 🗓️ Monthly Calendar")
 
-    # --- Filters (now inside the left column) ---
     filter_col1, filter_col2 = st.columns(2)
     with filter_col1:
         mascot_list = ["All"] + sorted(inventory_df["Mascot_Name"].unique())
@@ -49,17 +213,16 @@ with left_col:
     with filter_col2:
         month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
 
-    # --- Data Preparation (based on filter selection) ---
+    # --- Data Preparation for Calendar Display ---
     filtered_log = rental_log_df.copy()
     filtered_log["Start_Date"] = pd.to_datetime(filtered_log["Start_Date"], errors="coerce")
     filtered_log["End_Date"] = pd.to_datetime(filtered_log["End_Date"], errors="coerce")
-
     if selected_mascot != "All":
         filtered_log = filtered_log[filtered_log["Mascot_Name"] == selected_mascot]
 
     month_start = datetime(month_filter.year, month_filter.month, 1)
-    last_day_of_month = calendar.monthrange(month_filter.year, month_filter.month)[1]
-    month_end = datetime(month_filter.year, month_filter.month, last_day_of_month)
+    last_day = calendar.monthrange(month_filter.year, month_filter.month)[1]
+    month_end = datetime(month_filter.year, month_filter.month, last_day)
     date_range = pd.date_range(month_start, month_end)
     calendar_df = pd.DataFrame({"Date": date_range})
 
@@ -76,34 +239,39 @@ with left_col:
     st.markdown("<hr style='margin-top: 0; margin-bottom: 1rem'>", unsafe_allow_html=True)
 
     # --- Calendar Grid Display ---
-    days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     header_cols = st.columns(7)
-    for i, day_name in enumerate(days_of_week):
-        header_cols[i].markdown(f"<div style='text-align:center; font-weight:bold;'>{day_name}</div>", unsafe_allow_html=True)
+    for i, day in enumerate(days):
+        header_cols[i].markdown(f"<div style='text-align:center; font-weight:bold;'>{day}</div>", unsafe_allow_html=True)
 
     for week in calendar.monthcalendar(month_filter.year, month_filter.month):
         cols = st.columns(7)
-        for i, day_num in enumerate(week):
+        for i, day in enumerate(week):
             with cols[i]:
-                if day_num == 0:
-                    st.markdown("")  # Keep column structure
+                if day == 0:
+                    st.markdown("")
                 else:
-                    date_obj = datetime(month_filter.year, month_filter.month, day_num)
-                    status = calendar_df.loc[calendar_df["Date"] == date_obj, "Status"].iloc[0]
+                    date = datetime(month_filter.year, month_filter.month, day)
+                    status = calendar_df.loc[calendar_df["Date"] == date, "Status"].iloc[0]
                     is_booked = "❌" in status
                     bg_color = "#f9e5e5" if is_booked else "#e6ffea"
-                    icon, text = status.split(" ", 1)
+                    
+                    # Splitting logic to handle both "✅ Available" and "❌ Mascot Name"
+                    parts = status.split(" ", 1)
+                    icon = parts[0]
+                    text = parts[1] if len(parts) > 1 else ""
 
                     st.markdown(f"""
                         <div style='background-color:{bg_color}; border-radius:10px; padding:10px; text-align:center;
-                                    box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:8px; min-height:80px;'>
-                            <strong>{day_num}</strong><br>
-                            <div style='font-size: 0.9em;'>{icon} {text}</div>
+                                    box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:8px; min-height:80px;
+                                    display: flex; flex-direction: column; justify-content: flex-start;'>
+                            <strong style='margin-bottom: 5px;'>{day}</strong>
+                            <div style='font-size: 0.9em; word-wrap: break-word;'>{icon} {text}</div>
                         </div>
                     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# RIGHT COLUMN: Contains all form-related elements
+# RIGHT COLUMN: Forms for New Entry and Deletion
 # ==============================================================================
 with right_col:
     st.markdown("### 📌 New Rental Entry")
@@ -113,32 +281,63 @@ with right_col:
         start_date = st.date_input("Start Date", value=datetime.today())
         end_date = st.date_input("End Date", value=datetime.today())
 
-        if not inventory_df[inventory_df["Mascot_Name"] == mascot_choice].empty:
-            mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
-            st.markdown("---")
-            st.markdown("##### 📋 Mascot Details")
-            st.write(f"**Size:** {mascot_row.get('Size', 'N/A')}")
-            st.write(f"**Weight:** {mascot_row.get('Weight_kg', 'N/A')} kg")
-            st.write(f"**Height:** {mascot_row.get('Height_cm', 'N/A')} cm")
-            # You can add more details here if needed
+        # --- DYNAMIC MASCOT DETAILS (RESTORED) ---
+        mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
         
+        weight_display = "N/A" if pd.isna(mascot_row["Weight_kg"]) else f"{mascot_row['Weight_kg']} kg"
+        height_display = "N/A" if pd.isna(mascot_row["Height_cm"]) else f"{mascot_row['Height_cm']}"
+
+        st.markdown("### 📋 Mascot Details")
+        st.write(f"**Size:** {mascot_row.get('Size', 'N/A')}")
+        st.write(f"**Weight:** {weight_display}")
+        st.write(f"**Height:** {height_display}")
+        st.write(f"**Quantity Available:** {int(mascot_row.get('Quantity', 0))}")
+        st.write(f"**Rent Price:** ${mascot_row.get('Rent_Price', 'N/A')}")
+        st.write(f"**Sale Price:** ${mascot_row.get('Sale_Price', 'N/A')}")
+        st.write(f"**Status:** {mascot_row.get('Status', 'N/A')}")
+        # --- END OF DETAILS SECTION ---
+
         submitted = st.form_submit_button("📩 Submit Rental")
 
         if submitted:
-            # Re-fetch the row to be sure
-            mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
             new_entry = pd.DataFrame([{
                 "ID": mascot_row["ID"],
                 "Mascot_Name": mascot_row["Mascot_Name"],
                 "Start_Date": pd.to_datetime(start_date),
                 "End_Date": pd.to_datetime(end_date)
             }])
-            updated_log = pd.concat([rental_log_df, new_entry], ignore_index=True)
-            updated_log.to_excel("rental_log.xlsx", index=False)
+            rental_log_df = pd.concat([rental_log_df, new_entry], ignore_index=True)
+            rental_log_df.to_excel("rental_log.xlsx", index=False)
             st.success("✅ Rental submitted and logged!")
             st.rerun()
 
-    # The delete section can also go here
-    # st.markdown("---")
-    # st.markdown("### 🗑️ Delete Rental Booking")
-    # ... (Your delete booking code)
+    # --- DELETE BOOKING SECTION (RESTORED) ---
+    st.markdown("---")
+    st.markdown("### 🗑️ Delete Rental Booking")
+
+    if rental_log_df.empty:
+        st.info("No bookings to delete.")
+    else:
+        # Create a unique identifier for each booking to avoid confusion
+        rental_log_df['display'] = rental_log_df.apply(
+            lambda row: f"{row['Mascot_Name']} ({row['Start_Date'].strftime('%Y-%m-%d')} to {row['End_Date'].strftime('%Y-%m-%d')})",
+            axis=1
+        )
+        
+        booking_to_delete = st.selectbox(
+            "Select booking to delete:",
+            rental_log_df['display'].unique()
+        )
+
+        if st.button("❌ Delete Booking"):
+            # Find the index of the selected booking
+            idx_to_delete = rental_log_df[rental_log_df['display'] == booking_to_delete].index
+            
+            # Drop the temporary display column before saving
+            rental_log_df = rental_log_df.drop(columns=['display'])
+            
+            if not idx_to_delete.empty:
+                rental_log_df = rental_log_df.drop(idx_to_delete)
+                rental_log_df.to_excel("rental_log.xlsx", index=False)
+                st.success("🗑️ Booking deleted successfully.")
+                st.rerun()
