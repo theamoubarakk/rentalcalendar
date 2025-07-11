@@ -39,7 +39,6 @@ def load_rental_log(file_path="rental_log.xlsx"):
     """
     try:
         df = pd.read_excel(file_path)
-        # Ensure date columns are proper datetime objects
         df['Start_Date'] = pd.to_datetime(df['Start_Date'])
         df['End_Date'] = pd.to_datetime(df['End_Date'])
         return df
@@ -71,7 +70,6 @@ with left_col:
     with filter_col2:
         month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
 
-    # Prepare data for calendar display
     display_log = rental_log_df.copy()
     if selected_mascot != "All":
         display_log = display_log[display_log["Mascot_Name"] == selected_mascot]
@@ -92,7 +90,6 @@ with left_col:
     calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
     st.markdown("<hr style='margin-top: 0; margin-bottom: 1rem'>", unsafe_allow_html=True)
 
-    # Display calendar grid
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     header_cols = st.columns(7)
     for i, day_name in enumerate(days):
@@ -118,8 +115,12 @@ with left_col:
 with right_col:
     st.markdown("### 📌 New Rental Entry")
 
-    # --- ADJUSTMENT: ALL selection widgets are OUTSIDE the form for dynamic updates ---
+    # --- ADJUSTMENT 1: Widgets for dynamic updates are OUTSIDE the form ---
     mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"].unique()))
+    
+    # --- ADJUSTMENT 2: Customer name is now before the dates ---
+    customer_name = st.text_input("Customer Name:")
+    
     start_date = st.date_input("Start Date", value=datetime.today())
     end_date = st.date_input("End Date", value=datetime.today())
 
@@ -127,54 +128,50 @@ with right_col:
     mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
     general_status = mascot_row.get('Status', 'N/A')
     quantity = int(mascot_row.get('Quantity', 0))
-    dynamic_status_display = general_status  # Default to general status
+    dynamic_status_display = general_status
 
-    # Only check for bookings if the mascot is generally available
     if general_status == 'Available':
-        # Convert form dates to datetime objects for comparison
         start_date_dt = datetime.combine(start_date, datetime.min.time())
         end_date_dt = datetime.combine(end_date, datetime.min.time())
-        
-        # Find bookings for the same mascot that overlap with the selected dates
         conflicting_bookings = rental_log_df[
             (rental_log_df['Mascot_Name'] == mascot_choice) &
             (rental_log_df['Start_Date'] <= end_date_dt) &
             (rental_log_df['End_Date'] >= start_date_dt)
         ]
-        
         num_booked = len(conflicting_bookings)
-        
         if num_booked >= quantity:
             dynamic_status_display = "Booked for selected dates"
         else:
             available_count = quantity - num_booked
             dynamic_status_display = f"Available ({available_count} of {quantity} left)"
 
-    # --- FORM FOR SUBMISSION ---
-    with st.form("rental_form"):
-        customer_name = st.text_input("Customer Name:")
-        
-        # Display all details, including the new dynamic status
+    # --- FORM FOR SUBMISSION (now only contains the button and displays info) ---
+    with st.form("rental_form_submit"):
         st.markdown("### 📋 Mascot Details")
-        st.write(f"**Size:** {mascot_row.get('Size', 'N/A')}")
-        st.write(f"**Weight:** {mascot_row.get('Weight_kg', 'N/A')} kg")
-        st.write(f"**Height:** {mascot_row.get('Height_cm', 'N/A')}")
-        st.write(f"**Quantity:** {quantity}")
+
+        # --- ADJUSTMENT 3: Robust "N/A" formatting for all details ---
+        size_display = mascot_row.get('Size') if pd.notna(mascot_row.get('Size')) else 'N/A'
+        weight_display = f"{mascot_row.get('Weight_kg')} kg" if pd.notna(mascot_row.get('Weight_kg')) else 'N/A'
+        height_display = mascot_row.get('Height_cm') if pd.notna(mascot_row.get('Height_cm')) else 'N/A'
+        quantity_display = int(mascot_row.get('Quantity')) if pd.notna(mascot_row.get('Quantity')) else 'N/A'
         
         def format_price(value):
             if pd.isna(value): return 'N/A'
             try: return f"${int(float(value))}"
             except (ValueError, TypeError): return str(value)
         
+        st.write(f"**Size:** {size_display}")
+        st.write(f"**Weight:** {weight_display}")
+        st.write(f"**Height:** {height_display}")
+        st.write(f"**Quantity:** {quantity_display}")
         st.write(f"**Rent Price:** {format_price(mascot_row.get('Rent_Price'))}")
         st.write(f"**Sale Price:** {format_price(mascot_row.get('Sale_Price'))}")
-        # Use the dynamic status here
         st.write(f"**Status:** {dynamic_status_display}")
 
         if st.form_submit_button("📩 Submit Rental"):
             if not customer_name:
                 st.warning("Please enter a customer name.")
-            elif "Booked" in dynamic_status_display:
+            elif "Booked" in str(dynamic_status_display):
                 st.error("This mascot is fully booked for the selected dates. Please choose different dates.")
             else:
                 new_entry_data = {
