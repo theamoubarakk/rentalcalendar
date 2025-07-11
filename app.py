@@ -88,8 +88,6 @@ with left_col:
         if not filtered_log.empty:
             booked = filtered_log[(filtered_log["Start_Date"] <= date) & (filtered_log["End_Date"] >= date)]
             if not booked.empty:
-                # You can choose to show customer names on the calendar too, if desired
-                # For now, we'll keep it clean with just the mascot name.
                 return f"❌ {', '.join(booked['Mascot_Name'].unique())}"
         return "✅ Available"
 
@@ -122,15 +120,17 @@ with left_col:
 with right_col:
     st.markdown("### 📌 New Rental Entry")
 
-    with st.form("rental_form"):
-        mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"].unique()))
-        
-        # --- ADDED: Customer Name Input Field ---
-        customer_name = st.text_input("Customer Name:")
+    # --- ADJUSTMENT: Mascot selection is now OUTSIDE the form ---
+    # This allows it to trigger an immediate rerun and update the details.
+    mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"].unique()))
 
+    # The rest of the entry fields remain in the form to be submitted together.
+    with st.form("rental_form"):
+        customer_name = st.text_input("Customer Name:")
         start_date = st.date_input("Start Date", value=datetime.today())
         end_date = st.date_input("End Date", value=datetime.today())
 
+        # Details are now fetched based on the mascot_choice from outside the form
         mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
 
         def format_price(value):
@@ -158,6 +158,7 @@ with right_col:
         st.write(f"**Sale Price:** {format_price(mascot_row.get('Sale_Price'))}")
         st.write(f"**Status:** {status_display}")
 
+        # The submit button now has a key to differentiate it from the delete button
         if st.form_submit_button("📩 Submit Rental"):
             if not customer_name:
                 st.warning("Please enter a customer name.")
@@ -165,7 +166,7 @@ with right_col:
                 new_entry_data = {
                     "ID": mascot_row["ID"],
                     "Mascot_Name": mascot_row["Mascot_Name"],
-                    "Customer_Name": customer_name, # <-- SAVING THE CUSTOMER NAME
+                    "Customer_Name": customer_name,
                     "Start_Date": pd.to_datetime(start_date),
                     "End_Date": pd.to_datetime(end_date)
                 }
@@ -181,12 +182,11 @@ with right_col:
     if rental_log_df.empty:
         st.info("No bookings to delete.")
     else:
-        # --- UPDATED: Include customer name in the delete dropdown for clarity ---
         rental_log_df['display'] = rental_log_df.apply(
             lambda row: f"{row.get('Customer_Name', 'N/A')} - {row['Mascot_Name']} ({row.get('Start_Date', pd.NaT).strftime('%Y-%m-%d')} to {row.get('End_Date', pd.NaT).strftime('%Y-%m-%d')})",
             axis=1
         )
-        booking_to_delete = st.selectbox("Select booking to delete:", rental_log_df['display'].unique())
+        booking_to_delete = st.selectbox("Select booking to delete:", rental_log_df['display'].unique(), key="delete_booking_select")
         
         if st.button("❌ Delete Booking"):
             index_to_delete = rental_log_df[rental_log_df['display'] == booking_to_delete].index
