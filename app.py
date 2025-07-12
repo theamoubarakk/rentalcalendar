@@ -116,8 +116,8 @@ with left_col:
                 
                 tooltip_parts.append(f"{mascot}: {customer} ({phone})")
             
-            tooltip_text = "
-".join(tooltip_parts)
+            # Use a proper newline join instead of a literal line break
+            tooltip_text = "\n".join(tooltip_parts)
             
             return (display_text, tooltip_text)
 
