@@ -22,6 +22,10 @@ st.markdown("""
         margin-top: 0.25rem !important;
         margin-bottom: 0.25rem !important;
       }
+      /* pull those specific H3s up even tighter */
+      .stMarkdown h3 {
+        margin-top: 0 !important;
+      }
     </style>
 """, unsafe_allow_html=True)
 
@@ -32,7 +36,6 @@ hdr_left, hdr_right = st.columns([9, 1], gap="small")
 with hdr_left:
     st.title("📅 Baba Jina Mascot Rental Calendar")
 with hdr_right:
-    # use a high-res logo.png so it stays crisp
     st.image("logo.png", width=200)
 
 # --- Data loading & core functions ---
@@ -122,7 +125,7 @@ with left_col:
     end   = datetime(month_sel.year, month_sel.month,
                      calendar.monthrange(month_sel.year, month_sel.month)[1])
     days = pd.date_range(start, end)
-    cal = pd.DataFrame({"Date": days})
+    cal  = pd.DataFrame({"Date": days})
 
     def day_status(d):
         b = df_log[(df_log['start_date'] <= d) & (df_log['end_date'] >= d)]
@@ -135,20 +138,17 @@ with left_col:
     cal["ST"] = cal["Date"].apply(day_status)
     st.markdown("<hr style='margin:0.5rem 0;'>", unsafe_allow_html=True)
 
-    # weekday headers
     wk = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
     hdr = st.columns(7)
     for i, wd in enumerate(wk):
         hdr[i].markdown(f"**{wd}**", unsafe_allow_html=True)
 
-    # calendar grid
     for week in calendar.monthcalendar(month_sel.year, month_sel.month):
         cols = st.columns(7)
         for i, day in enumerate(week):
-            if day == 0:
-                continue
+            if day == 0: continue
             d = datetime(month_sel.year, month_sel.month, day)
-            txt, tip = cal.loc[cal["Date"] == d, "ST"].iloc[0]
+            txt, tip = cal.loc[cal["Date"]==d,"ST"].iloc[0]
             bg = "#f9e5e5" if txt.startswith("❌") else "#e6ffea"
             icon = txt.split()[0]
             cols[i].markdown(
@@ -177,8 +177,8 @@ with right_col:
         elif ed_in < sd_in:
             st.warning("End date cannot be before start date.")
         else:
-            sdt = datetime.combine(sd_in, datetime.min.time())
-            edt = datetime.combine(ed_in, datetime.min.time())
+            sdt   = datetime.combine(sd_in, datetime.min.time())
+            edt   = datetime.combine(ed_in, datetime.min.time())
             row   = inventory_df.query("Mascot_Name==@choice").iloc[0]
             total = int(row.Quantity)
             used  = check_availability(rental_log_df, choice, sdt, edt)
@@ -196,7 +196,6 @@ with right_col:
                 st.success(f"✅ Rental submitted! ({used+1}/{total})")
                 st.experimental_rerun()
 
-    # Mascot Details
     md = inventory_df.query("Mascot_Name==@choice").iloc[0]
     st.markdown("### 📋 Mascot Details")
     d1, d2 = st.columns(2)
@@ -209,7 +208,6 @@ with right_col:
         st.write(f"*Rent Price:* ${md.Rent_Price}")
         st.write(f"*Sale Price:* ${md.Sale_Price}")
 
-    # Delete & Download
     st.markdown("---")
     dc, dl = st.columns(2)
     with dc:
@@ -225,8 +223,7 @@ with right_col:
             if st.button("❌ Delete"):
                 conn = sqlite3.connect("rental_log.db")
                 conn.execute("DELETE FROM rentals WHERE id = ?", (opts[sel],))
-                conn.commit()
-                conn.close()
+                conn.commit(); conn.close()
                 st.success("🗑️ Booking deleted.")
                 st.experimental_rerun()
     with dl:
