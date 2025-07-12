@@ -64,7 +64,6 @@ def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
     df['Mascot_Name'] = df['Mascot_Name'].str.strip()
     return df[df['Mascot_Name'] != '']
 
-
 def init_db(db_file="rental_log.db"):
     conn = sqlite3.connect(db_file)
     conn.execute(
@@ -83,7 +82,6 @@ def init_db(db_file="rental_log.db"):
     conn.commit()
     conn.close()
 
-
 def load_rental_log(db_file="rental_log.db"):
     conn = sqlite3.connect(db_file)
     df = pd.read_sql("SELECT * FROM rentals", conn)
@@ -92,7 +90,6 @@ def load_rental_log(db_file="rental_log.db"):
         df['start_date'] = pd.to_datetime(df['start_date'])
         df['end_date']   = pd.to_datetime(df['end_date'])
     return df
-
 
 def check_availability(log_df, name, start_dt, end_dt):
     if log_df.empty:
@@ -164,8 +161,10 @@ with right_col:
     d1, d2 = st.columns(2)
     with d1:
         st.write(f"*Size:* {md.get('Size','N/A')}")
-        st.write(f"*Weight:* {md.Weight_kg or 'N/A'} kg")
-        st.write(f"*Height:* {md.Height_cm or 'N/A'}")
+        weight_val = f"{md.Weight_kg} kg" if pd.notna(md.Weight_kg) else "N/A"
+        st.write(f"*Weight:* {weight_val}")
+        height_val = f"{md.Height_cm} cm" if pd.notna(md.Height_cm) else "N/A"
+        st.write(f"*Height:* {height_val}")
     with d2:
         st.write(f"*Quantity:* {int(md.Quantity)}")
         st.write(f"*Rent Price:* ${md.Rent_Price}")
@@ -247,13 +246,13 @@ with left_col:
         for i, day in enumerate(week):
             if day == 0:
                 continue
-            d = datetime(month_sel.year, month_sel.month, day)
+            d   = datetime(month_sel.year, month_sel.month, day)
             txt, tip = cal.loc[cal["Date"]==d, "ST"].iloc[0]
             bg   = "#f9e5e5" if txt.startswith("❌") else "#e6ffea"
             icon = txt.split()[0]
             cols[i].markdown(
                 f"<div title='{tip}' style='background:{bg};"
                 "padding:8px;border-radius:8px;text-align:center;min-height:70px;'>"
-                f"<strong>{day}</strong><br>{icon}</n div>",
+                f"<strong>{day}</strong><br>{icon}</div>",
                 unsafe_allow_html=True
             )
