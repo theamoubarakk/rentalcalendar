@@ -24,7 +24,7 @@ st.markdown("""
       }
       /* pull the H3s even further up */
       .stMarkdown h3 {
-        margin-top: -0.5rem !important;
+        margin-top: 1.5rem !important;
       }
     </style>
 """, unsafe_allow_html=True)
