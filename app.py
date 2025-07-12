@@ -4,16 +4,15 @@ from datetime import datetime, timedelta
 import calendar
 import sqlite3
 
-# ─────────── remove white-space ───────────
+import streamlit as st
+
 st.markdown(
     """
     <style>
-      /* remove the big top and bottom padding from every page block */
       .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
       }
-      /* collapse the extra margin under headers, forms, etc */
       .css-1avcm0n, /* hr container */
       .css-18e3th9 { /* main gap container */
         margin-bottom: 0.25rem !important;
@@ -22,15 +21,18 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-# ─────────────────────────────────────────────
 
-# --- Page config and top header/logo ---
 st.set_page_config(layout="wide")
+
+# ─── top header + logo ───
 hdr_logo, hdr_title = st.columns([1, 9], gap="small")
 with hdr_logo:
     st.image("logo.png", width=150)
 with hdr_title:
     st.markdown("### 📅 Baba Jina Mascot Rental Calendar")
+
+# --- and _nothing_ above this line that renders text or headers ---
+
 
 # --- Data loading & core functions ---
 @st.cache_data
