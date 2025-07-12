@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import calendar
 import sqlite3
 
-# ─────────── remove white‐space ───────────
+# ─── remove white‐space and collapse header margins ───
 st.markdown(
     """
     <style>
@@ -23,11 +23,14 @@ st.markdown(
         margin-top: 0.25rem !important;
         margin-bottom: 0.25rem !important;
       }
+      /* pull ALL H3s even tighter */
+      .stMarkdown h3 {
+        margin-top: 0 !important;
+      }
     </style>
     """,
     unsafe_allow_html=True,
 )
-# ─────────────────────────────────────────────
 
 st.set_page_config(layout="wide")
 
@@ -36,6 +39,9 @@ with hdr_left:
     st.title("📅 Baba Jina Mascot Rental Calendar")
 with hdr_right:
     st.image("logo.png", width=200)
+
+# … the rest of your app remains exactly the same …
+
 
 # --- Data loading & core functions ---
 @st.cache_data
