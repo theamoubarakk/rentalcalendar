@@ -42,7 +42,7 @@ with col2:
     st.title("📅 Baba Jina Mascot Rental Calendar")
 with col3:
     # use a high-res @2x image so it stays crisp
-    st.image("logo.png", width=120)
+    st.image("logo.png", width=200)
 
 # --- Data loading & core functions ---
 @st.cache_data
