@@ -99,17 +99,12 @@ with right_col:
             contact_phone = st.text_input("Contact Phone Number:")
 
         # 3) Start & End dates side-by-side
-        col_start, col_end = st.columns(2)
-        with col_start:
-            start_date_input = st.date_input(
-                "Start Date",
-                value=datetime.today()
-            )
-        with col_end:
-            end_date_input = st.date_input(
-                "End Date",
-                value=datetime.today()
-            )
+       # ——— Put Start & End side-by-side ———
+col_start, col_end = st.columns(2)
+with col_start:
+    start_date_input = st.date_input("Start Date", value=datetime.today())
+with col_end:
+    end_date_input   = st.date_input("End Date",   value=datetime.today())
 
         # 4) Mascot details in two columns
         mascot_row = inventory_df[
