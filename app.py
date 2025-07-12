@@ -125,6 +125,18 @@ with left_col:
     cal_df      = pd.DataFrame({"Date": date_range})
 
     def get_booking_status(date):
+        # ** first honor the inventory's own Status **
+        if selected_mascot != "All":
+            base_status = (
+                inventory_df
+                .query("Mascot_Name == @selected_mascot")
+                .iloc[0]
+                .get("Status","Available")
+            )
+            if base_status != "Available":
+                return (f"❌ {base_status}", f"This mascot is '{base_status}' all month.")
+
+        # then overlay any actual bookings
         booked = filtered_log[
           (filtered_log["start_date"] <= date) &
           (filtered_log["end_date"]   >= date)
@@ -147,7 +159,8 @@ with left_col:
     for week in calendar.monthcalendar(month_filter.year, month_filter.month):
         cols = st.columns(7)
         for i,day in enumerate(week):
-            if day==0: continue
+            if day==0: 
+                continue
             dt = datetime(month_filter.year, month_filter.month, day)
             status_txt, tip = cal_df.loc[cal_df["Date"]==dt,"Status"].iloc[0]
             bg = "#f9e5e5" if status_txt.startswith("❌") else "#e6ffea"
