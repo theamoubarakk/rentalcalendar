@@ -34,7 +34,7 @@ header_col, logo_col = st.columns([9, 1], gap="small")
 with header_col:
     st.title("📅 Baba Jina Mascot Rental Calendar")
 with logo_col:
-    st.image("path/to/your/logo.png", width=80)
+    st.image("'/Users/user/Desktop/uni thea/AUB 24-25/Summer 25/MSBA390-Capstone/ChatGPT Image Jun 30, 2025 at 10_45_24 PM.png'", width=80)
 
 @st.cache_data
 def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
