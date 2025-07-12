@@ -4,8 +4,9 @@ from datetime import datetime, timedelta
 import calendar
 import sqlite3
 
-# — your existing block-container CSS here —
-st.markdown("""
+# ─────────── remove white‐space ───────────
+st.markdown(
+    """
     <style>
       .block-container {
         padding-top: 0 !important;
@@ -22,22 +23,30 @@ st.markdown("""
         margin-top: 0.25rem !important;
         margin-bottom: 0.25rem !important;
       }
-      /* pull the H3s even further up */
-      .stMarkdown h3 {
-        margin-top: 1.5rem !important;
-      }
     </style>
-""", unsafe_allow_html=True)
-
+    """,
+    unsafe_allow_html=True,
+)
+# ─────────────────────────────────────────────
 
 st.set_page_config(layout="wide")
 
-# ─── top header: title on left, logo on right ───
-hdr_left, hdr_right = st.columns([9, 1], gap="small")
-with hdr_left:
-    st.title("📅 Baba Jina Mascot Rental Calendar")
-with hdr_right:
-    st.image("logo.png", width=200)
+# ─── CUSTOM HEADER (flex‐box) ───
+st.markdown(
+    """
+    <div style="
+         display: flex;
+         align-items: center;
+         justify-content: space-between;
+         margin-bottom: 1rem;
+         padding: 0;
+         ">
+      <h1 style="margin: 0; padding: 0;">📅 Baba Jina Mascot Rental Calendar</h1>
+      <img src="logo.png" width="200" style="margin: 0; padding: 0;" />
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # --- Data loading & core functions ---
 @st.cache_data
@@ -90,7 +99,8 @@ def load_rental_log(db_file="rental_log.db"):
     return df
 
 def check_availability(log_df, name, start_dt, end_dt):
-    if log_df.empty: return 0
+    if log_df.empty:
+        return 0
     busy = log_df[
       (log_df['mascot_name'] == name) &
       (log_df['start_date'] <= end_dt) &
@@ -105,7 +115,7 @@ rental_log_df = load_rental_log()
 if inventory_df.empty:
     st.stop()
 
-# --- Main two-column layout ---
+# --- Main two‐column layout ---
 left_col, right_col = st.columns([3,2], gap="large")
 
 # LEFT: Calendar
@@ -147,14 +157,14 @@ with left_col:
     for week in calendar.monthcalendar(month_sel.year, month_sel.month):
         cols = st.columns(7)
         for i, day in enumerate(week):
-            if day == 0: continue
+            if day == 0:
+                continue
             d = datetime(month_sel.year, month_sel.month, day)
             txt, tip = cal.loc[cal["Date"]==d,"ST"].iloc[0]
             bg = "#f9e5e5" if txt.startswith("❌") else "#e6ffea"
             icon = txt.split()[0]
             cols[i].markdown(
-                f"<div title='{tip}' style='background:{bg};padding:8px;"
-                "border-radius:8px;text-align:center;min-height:70px;'>"
+                f"<div title='{tip}' style='background:{bg};padding:8px;border-radius:8px;text-align:center;min-height:70px;'>"
                 f"<strong>{day}</strong><br>{icon}</div>",
                 unsafe_allow_html=True
             )
@@ -165,11 +175,15 @@ with right_col:
     choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"]))
     with st.form("rent_form"):
         cn, ph = st.columns(2)
-        with cn: customer = st.text_input("Customer Name:")
-        with ph: phone   = st.text_input("Contact Phone Number:")
+        with cn:
+            customer = st.text_input("Customer Name:")
+        with ph:
+            phone   = st.text_input("Contact Phone Number:")
         sd, ed = st.columns(2)
-        with sd: sd_in = st.date_input("Start Date", value=datetime.today())
-        with ed: ed_in = st.date_input("End Date",   value=datetime.today())
+        with sd:
+            sd_in = st.date_input("Start Date", value=datetime.today())
+        with ed:
+            ed_in = st.date_input("End Date",   value=datetime.today())
         submit = st.form_submit_button("📩 Submit Rental")
 
     if submit:
@@ -189,11 +203,11 @@ with right_col:
                 conn = sqlite3.connect("rental_log.db")
                 cur  = conn.cursor()
                 cur.execute(
-                    "INSERT INTO rentals (mascot_id,mascot_name,customer_name,"
-                    "contact_phone,start_date,end_date) VALUES (?,?,?,?,?,?)",
+                    "INSERT INTO rentals (mascot_id,mascot_name,customer_name,contact_phone,start_date,end_date) VALUES (?,?,?,?,?,?)",
                     (int(row.ID), choice, customer, phone, sd_in, ed_in)
                 )
-                conn.commit(); conn.close()
+                conn.commit()
+                conn.close()
                 st.success(f"✅ Rental submitted! ({used+1}/{total})")
                 st.experimental_rerun()
 
@@ -224,7 +238,8 @@ with right_col:
             if st.button("❌ Delete"):
                 conn = sqlite3.connect("rental_log.db")
                 conn.execute("DELETE FROM rentals WHERE id = ?", (opts[sel],))
-                conn.commit(); conn.close()
+                conn.commit()
+                conn.close()
                 st.success("🗑️ Booking deleted.")
                 st.experimental_rerun()
     with dl:
