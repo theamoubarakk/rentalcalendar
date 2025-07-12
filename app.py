@@ -2,14 +2,13 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import calendar
-import sqlite3 # NEW: Import the SQLite library
+import sqlite3
 
 # --- Configuration and Core Functions ---
 st.set_page_config(layout="wide")
 
 @st.cache_data
 def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
-    # This function remains the same, as we're still using Excel for the static inventory.
     try:
         df = pd.read_excel(file_path)
     except FileNotFoundError:
@@ -32,17 +31,17 @@ def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
     df = df[df['Mascot_Name'] != '']
     return df
 
-# NEW: Function to initialize the SQLite database and create the table
+# --- CHANGED: Updated database schema to include contact_phone ---
 def init_db(db_file="rental_log.db"):
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
-    # Create table if it doesn't exist already
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS rentals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mascot_id INTEGER,
             mascot_name TEXT NOT NULL,
             customer_name TEXT NOT NULL,
+            contact_phone TEXT, 
             start_date DATE NOT NULL,
             end_date DATE NOT NULL
         )
@@ -50,19 +49,14 @@ def init_db(db_file="rental_log.db"):
     conn.commit()
     conn.close()
 
-# CHANGED: This function now loads data from the SQLite database
 def load_rental_log(db_file="rental_log.db"):
-    """
-    Loads the rental log from the SQLite database into a pandas DataFrame.
-    """
     conn = sqlite3.connect(db_file)
-    # Use pandas to directly read the SQL query result into a DataFrame
     df = pd.read_sql_query("SELECT * FROM rentals", conn)
     conn.close()
     return df
 
 # --- Initialize Database and Load Data ---
-init_db() # Create the DB and table if they don't exist
+init_db()
 inventory_df = load_inventory_from_excel()
 rental_log_df = load_rental_log()
 
@@ -138,11 +132,13 @@ with right_col:
     with st.form("rental_form"):
         mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"].unique()))
         customer_name = st.text_input("Customer Name:")
+        # --- ADDED: Contact Phone Number Input Field ---
+        contact_phone = st.text_input("Contact Phone Number:")
+        
         start_date = st.date_input("Start Date", value=datetime.today())
         end_date = st.date_input("End Date", value=datetime.today())
 
         mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
-        # (Mascot details display logic remains the same)
         def format_price(value):
             if pd.isna(value): return 'N/A'
             try: return f"${int(float(value))}"
@@ -153,24 +149,24 @@ with right_col:
         quantity_display = int(mascot_row.get('Quantity', 0)) if pd.notna(mascot_row.get('Quantity')) else 'N/A'
         status_display = mascot_row.get('Status', 'N/A') if pd.notna(mascot_row.get('Status')) else 'N/A'
         st.markdown("### 📋 Mascot Details")
-        st.write(f"*Size:* {size_display}")
-        st.write(f"*Weight:* {weight_display}")
-        st.write(f"*Height:* {height_display}")
-        st.write(f"*Quantity:* {quantity_display}")
-        st.write(f"*Rent Price:* {format_price(mascot_row.get('Rent_Price'))}")
-        st.write(f"*Sale Price:* {format_price(mascot_row.get('Sale_Price'))}")
-        st.write(f"*Status:* {status_display}")
+        st.write(f"**Size:** {size_display}")
+        st.write(f"**Weight:** {weight_display}")
+        st.write(f"**Height:** {height_display}")
+        st.write(f"**Quantity:** {quantity_display}")
+        st.write(f"**Rent Price:** {format_price(mascot_row.get('Rent_Price'))}")
+        st.write(f"**Sale Price:** {format_price(mascot_row.get('Sale_Price'))}")
+        st.write(f"**Status:** {status_display}")
 
         if st.form_submit_button("📩 Submit Rental"):
             if not customer_name:
                 st.warning("Please enter a customer name.")
             else:
-                # CHANGED: Insert data into the SQLite database
+                # --- CHANGED: Updated INSERT statement to include contact_phone ---
                 conn = sqlite3.connect("rental_log.db")
                 cursor = conn.cursor()
                 cursor.execute(
-                    "INSERT INTO rentals (mascot_id, mascot_name, customer_name, start_date, end_date) VALUES (?, ?, ?, ?, ?)",
-                    (int(mascot_row["ID"]), mascot_row["Mascot_Name"], customer_name, start_date, end_date)
+                    "INSERT INTO rentals (mascot_id, mascot_name, customer_name, contact_phone, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)",
+                    (int(mascot_row["ID"]), mascot_row["Mascot_Name"], customer_name, contact_phone, start_date, end_date)
                 )
                 conn.commit()
                 conn.close()
@@ -183,7 +179,6 @@ with right_col:
     if rental_log_df.empty:
         st.info("No bookings to delete.")
     else:
-        # CHANGED: Create display strings and a mapping to the unique database ID
         display_to_id_map = {}
         for index, row in rental_log_df.iterrows():
             display_str = f"{row.get('customer_name', 'N/A')} - {row['mascot_name']} ({row.get('start_date', 'N/A')} to {row.get('end_date', 'N/A')})"
@@ -192,10 +187,7 @@ with right_col:
         booking_to_delete_display = st.selectbox("Select booking to delete:", list(display_to_id_map.keys()))
         
         if st.button("❌ Delete Booking"):
-            # Get the unique ID of the booking to delete
             booking_id_to_delete = display_to_id_map[booking_to_delete_display]
-            
-            # CHANGED: Delete the record from the SQLite database
             conn = sqlite3.connect("rental_log.db")
             cursor = conn.cursor()
             cursor.execute("DELETE FROM rentals WHERE id = ?", (booking_id_to_delete,))
@@ -203,3 +195,16 @@ with right_col:
             conn.close()
             st.success("🗑️ Booking deleted successfully from database.")
             st.rerun()
+
+    # --- ADDED: Download CSV Button ---
+    st.markdown("---")
+    if not rental_log_df.empty:
+        # Convert DataFrame to CSV format in memory
+        csv = rental_log_df.to_csv(index=False).encode('utf-8')
+        
+        st.download_button(
+           label="📥 Download Rental Log as CSV",
+           data=csv,
+           file_name='rental_log.csv',
+           mime='text/csv',
+        )
