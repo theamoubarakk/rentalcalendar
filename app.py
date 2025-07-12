@@ -98,14 +98,31 @@ with left_col:
     date_range = pd.date_range(start=month_start, end=month_end)
     calendar_df = pd.DataFrame({"Date": date_range})
 
+    # --- CHANGED: This function now returns a tuple: (display_text, tooltip_text) ---
     def get_booking_status(date):
-        if not filtered_log.empty:
-            booked = filtered_log[(filtered_log["start_date"] <= date) & (filtered_log["end_date"] >= date)]
-            if not booked.empty:
-                return f"❌ {', '.join(booked['mascot_name'].unique())}"
-        return "✅ Available"
+        # Find all bookings that overlap with this specific day
+        booked = filtered_log[(filtered_log["start_date"] <= date) & (filtered_log["end_date"] >= date)]
+        
+        if booked.empty:
+            return ("✅ Available", "This day is available for booking.")
+        else:
+            # Prepare the main text to display in the box
+            display_text = f"❌ {', '.join(booked['mascot_name'].unique())}"
+            
+            # Prepare the detailed text for the hover tooltip
+            tooltip_parts = []
+            for _, row in booked.iterrows():
+                customer = row.get('customer_name', 'N/A')
+                phone = row.get('contact_phone', 'N/A')
+                tooltip_parts.append(f"{row['mascot_name']}: {customer} ({phone})")
+            
+            # Use an HTML entity for newlines in the title attribute
+            tooltip_text = "
+".join(tooltip_parts)
+            
+            return (display_text, tooltip_text)
 
-    calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
+    calendar_df["StatusTuple"] = calendar_df["Date"].apply(get_booking_status)
     st.markdown("<hr style='margin-top: 0; margin-bottom: 1rem'>", unsafe_allow_html=True)
 
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -118,18 +135,20 @@ with left_col:
         for i, day_num in enumerate(week):
             if day_num != 0:
                 date = datetime(month_filter.year, month_filter.month, day_num)
-                status = calendar_df.loc[calendar_df["Date"] == date, "Status"].iloc[0]
-                bg_color = "#f9e5e5" if "❌" in status else "#e6ffea"
-                icon, *text = status.split(" ", 1)
+                # --- CHANGED: Unpack the tuple to get both display text and tooltip text ---
+                status_text, tooltip_info = calendar_df.loc[calendar_df["Date"] == date, "StatusTuple"].iloc[0]
+                
+                bg_color = "#f9e5e5" if "❌" in status_text else "#e6ffea"
+                icon, *text = status_text.split(" ", 1)
+                
+                # --- CHANGED: Added the `title` attribute to the div for the hover effect ---
                 cols[i].markdown(f"""
-                    <div style='background-color:{bg_color};border-radius:10px;padding:10px;text-align:center;
+                    <div title="{tooltip_info}" style='background-color:{bg_color};border-radius:10px;padding:10px;text-align:center;
                                 box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:8px;min-height:80px;'>
                         <strong>{day_num}</strong><br><div style='font-size:0.9em;word-wrap:break-word;'>{icon} {text[0] if text else ''}</div>
                     </div>""", unsafe_allow_html=True)
     
     st.markdown("---")
-
-    # --- NEW: Nested columns to place Delete and Download side-by-side ---
     delete_col, download_col = st.columns(2)
 
     with delete_col:
@@ -142,11 +161,7 @@ with left_col:
                 display_str = f"{row.get('customer_name', 'N/A')} - {row['mascot_name']} ({pd.to_datetime(row.get('start_date')).strftime('%Y-%m-%d')} to {pd.to_datetime(row.get('end_date')).strftime('%Y-%m-%d')})"
                 display_to_id_map[display_str] = row['id']
             
-            booking_to_delete_display = st.selectbox(
-                "Select booking to delete:", 
-                list(display_to_id_map.keys()),
-                key="delete_selectbox" # Add a key to avoid conflicts
-            )
+            booking_to_delete_display = st.selectbox("Select booking to delete:", list(display_to_id_map.keys()), key="delete_selectbox")
             
             if st.button("❌ Delete Booking"):
                 booking_id_to_delete = display_to_id_map[booking_to_delete_display]
