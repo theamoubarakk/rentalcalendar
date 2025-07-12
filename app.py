@@ -20,8 +20,12 @@ def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
         return pd.DataFrame()
 
     column_mapping = {
-        'Mascot Name': 'Mascot_Name', 'Kg': 'Weight_kg', 'cm': 'Height_cm',
-        'pcs': 'Quantity', 'Rent Price': 'Rent_Price', 'Sale Price': 'Sale_Price',
+        'Mascot Name': 'Mascot_Name',
+        'Kg': 'Weight_kg',
+        'cm': 'Height_cm',
+        'pcs': 'Quantity',
+        'Rent Price': 'Rent_Price',
+        'Sale Price': 'Sale_Price',
         'Status (Available, Rented, Reserved, Under Repair)': 'Status'
     }
     df.rename(columns=column_mapping, inplace=True)
@@ -36,9 +40,13 @@ def init_db(db_file="rental_log.db"):
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS rentals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, mascot_id INTEGER, mascot_name TEXT NOT NULL,
-            customer_name TEXT NOT NULL, contact_phone TEXT, 
-            start_date DATE NOT NULL, end_date DATE NOT NULL
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mascot_id INTEGER,
+            mascot_name TEXT NOT NULL,
+            customer_name TEXT NOT NULL,
+            contact_phone TEXT,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL
         )
     """)
     conn.commit()
@@ -55,178 +63,196 @@ def load_rental_log(db_file="rental_log.db"):
 def check_availability(log_df, mascot_name, start_date_req, end_date_req):
     if log_df.empty:
         return 0
-    mascot_bookings = log_df[log_df['mascot_name'] == mascot_name].copy()
-    conflicting_bookings = mascot_bookings[
-        (mascot_bookings['start_date'] <= end_date_req) & 
+    mascot_bookings = log_df[log_df['mascot_name'] == mascot_name]
+    conflicts = mascot_bookings[
+        (mascot_bookings['start_date'] <= end_date_req) &
         (mascot_bookings['end_date'] >= start_date_req)
     ]
-    return len(conflicting_bookings)
+    return len(conflicts)
 
-# --- Initialize Database and Load Data ---
+# --- Initialize ---
 init_db()
 inventory_df = load_inventory_from_excel()
 rental_log_df = load_rental_log()
 
-# --- Main App ---
 st.title("📅 Baba Jina Mascot Rental Calendar")
 
 if inventory_df.empty:
     st.stop()
 
-# --- Layout Definition ---
 left_col, right_col = st.columns([3, 2], gap="large")
 
+
 # ==============================================================================
-# LEFT COLUMN: Calendar, Delete, Download
+# LEFT: Calendar + Delete + Download
 # ==============================================================================
 with left_col:
     st.markdown("### 🗓️ Monthly Calendar")
-    filter_col1, filter_col2 = st.columns(2)
-    with filter_col1:
-        mascot_list = ["All"] + sorted(inventory_df["Mascot_Name"].unique())
-        selected_mascot = st.selectbox("Filter by Mascot:", mascot_list)
-    with filter_col2:
+    c1, c2 = st.columns(2)
+    with c1:
+        filter_list = ["All"] + sorted(inventory_df["Mascot_Name"].unique())
+        selected_mascot = st.selectbox("Filter by Mascot:", filter_list)
+    with c2:
         month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
 
-    # apply filter
+    # filter log
     filtered_log = rental_log_df.copy()
     if selected_mascot != "All" and not filtered_log.empty:
         filtered_log = filtered_log[filtered_log["mascot_name"] == selected_mascot]
 
-    # build a date range for the month
-    month_start = datetime(month_filter.year, month_filter.month, 1)
+    # calendar dates
+    start_m = datetime(month_filter.year, month_filter.month, 1)
     last_day = calendar.monthrange(month_filter.year, month_filter.month)[1]
-    month_end = datetime(month_filter.year, month_filter.month, last_day)
-    date_range = pd.date_range(start=month_start, end=month_end)
-    calendar_df = pd.DataFrame({"Date": date_range})
+    end_m = datetime(month_filter.year, month_filter.month, last_day)
+    dates = pd.date_range(start=start_m, end=end_m)
+    cal_df = pd.DataFrame({"Date": dates})
 
-    # --- only changed here: properly escape quotes + join with "\n" ---
+    # --- only tweak: escape & newline-join tooltip ---
     def get_booking_status(date):
-        booked = filtered_log[
-            (filtered_log["start_date"] <= date) & 
+        b = filtered_log[
+            (filtered_log["start_date"] <= date) &
             (filtered_log["end_date"] >= date)
         ]
-        if booked.empty:
-            return ("✅ Available", "This day is available for booking.")
-        tooltip_parts = []
-        for _, row in booked.iterrows():
-            mascot = str(row["mascot_name"]).replace('"', '\\"')
-            customer = str(row.get("customer_name", "N/A")).replace('"', '\\"')
+        if b.empty:
+            return ("✅ Available", "This day is available.")
+        lines = []
+        for _, row in b.iterrows():
+            name = str(row["customer_name"]).replace('"', '\\"')
             phone = str(row.get("contact_phone", "N/A")).replace('"', '\\"')
-            tooltip_parts.append(f"{mascot}: {customer} ({phone})")
-        tooltip_text = "\n".join(tooltip_parts)        # ← newline join
-        display_text = f"❌ {', '.join(booked['mascot_name'].unique())}"
-        return (display_text, tooltip_text)
+            lines.append(f"{row['mascot_name']}: {name} ({phone})")
+        tt = "\n".join(lines)  
+        disp = f"❌ {', '.join(b['mascot_name'].unique())}"
+        return (disp, tt)
 
-    calendar_df["StatusTuple"] = calendar_df["Date"].apply(get_booking_status)
+    cal_df["Status"] = cal_df["Date"].apply(get_booking_status)
 
-    # draw weekday headers
-    st.markdown("<hr style='margin-top:0;margin-bottom:1rem'>", unsafe_allow_html=True)
-    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    header_cols = st.columns(7)
-    for i, d in enumerate(days):
-        header_cols[i].markdown(
-            f"<div style='text-align:center;font-weight:bold;'>{d}</div>", 
-            unsafe_allow_html=True
-        )
+    st.markdown("<hr style='margin:0 0 1rem 0'>", unsafe_allow_html=True)
+    weekdays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    header = st.columns(7)
+    for i, wd in enumerate(weekdays):
+        header[i].markdown(f"<div style='text-align:center;font-weight:bold;'>{wd}</div>",
+                           unsafe_allow_html=True)
 
-    # render each week
     for week in calendar.monthcalendar(month_filter.year, month_filter.month):
         cols = st.columns(7)
-        for i, day_num in enumerate(week):
-            if day_num == 0:
+        for i, day in enumerate(week):
+            if day == 0:
                 continue
-            this_date = datetime(month_filter.year, month_filter.month, day_num)
-            status_text, tooltip = calendar_df.loc[
-                calendar_df["Date"] == this_date, "StatusTuple"
-            ].iloc[0]
-            bg_color = "#f9e5e5" if status_text.startswith("❌") else "#e6ffea"
-            icon, *rest = status_text.split(" ", 1)
+            d = datetime(month_filter.year, month_filter.month, day)
+            disp, tt = cal_df.loc[cal_df["Date"]==d, "Status"].iloc[0]
+            bg = "#f9e5e5" if disp.startswith("❌") else "#e6ffea"
+            icon, *txt = disp.split(" ",1)
             cols[i].markdown(
                 f"""
-                <div title="{tooltip}"
+                <div title="{tt}"
                      style="
-                       background-color:{bg_color};
-                       border-radius:10px;
-                       padding:10px;
+                       background-color:{bg};
+                       padding:8px;
+                       border-radius:8px;
                        text-align:center;
-                       box-shadow:0 1px 3px rgba(0,0,0,0.05);
-                       margin-bottom:8px;
-                       min-height:80px;
+                       min-height:60px;
+                       box-shadow:0 1px 2px rgba(0,0,0,0.1);
                      ">
-                  <strong>{day_num}</strong><br>
-                  <div style="font-size:0.9em;word-wrap:break-word;">
-                    {icon} {rest[0] if rest else ''}
-                  </div>
+                  <strong>{day}</strong><br>
+                  <small>{icon} {txt[0] if txt else ''}</small>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
     st.markdown("---")
-
-    # --- your DELETE logic unchanged ---
-    delete_col, download_col = st.columns(2)
-    with delete_col:
-        st.markdown("### 🗑️ Delete Rental Booking")
+    # -- Delete --
+    dcol, xcol = st.columns(2)
+    with dcol:
+        st.markdown("### 🗑️ Delete Booking")
         if rental_log_df.empty:
-            st.info("No bookings to delete.")
+            st.info("No bookings.")
         else:
-            display_to_id_map = {
-                f"{row.customer_name} - {row.mascot_name} ({row.start_date.date()} to {row.end_date.date()})": row.id
-                for _, row in rental_log_df.iterrows()
+            mapping = {
+                f"{r.customer_name} - {r.mascot_name} ({r.start_date.date()} to {r.end_date.date()})": r.id
+                for _,r in rental_log_df.iterrows()
             }
-            sel = st.selectbox("Select booking to delete:", list(display_to_id_map.keys()))
-            if st.button("❌ Delete Booking"):
+            choice = st.selectbox("Pick to delete:", list(mapping.keys()))
+            if st.button("Delete"):
                 conn = sqlite3.connect("rental_log.db")
                 cur = conn.cursor()
-                cur.execute("DELETE FROM rentals WHERE id = ?", (display_to_id_map[sel],))
+                cur.execute("DELETE FROM rentals WHERE id=?", (mapping[choice],))
                 conn.commit()
                 conn.close()
-                st.success("Booking deleted.")
-                st.rerun()
-
-    # --- your DOWNLOAD logic unchanged ---
-    with download_col:
-        st.markdown("### 📥 Download Rental Log")
+                st.success("Deleted.")
+                st.experimental_rerun()
+    # -- Download --
+    with xcol:
+        st.markdown("### 📥 Download Log")
         if not rental_log_df.empty:
             csv = rental_log_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "Download Log as CSV",
-                data=csv,
-                file_name=f"rental_log_{datetime.now().date()}.csv",
-                mime="text/csv",
-            )
+            st.download_button("CSV", csv,
+                               file_name=f"log_{datetime.now().date()}.csv",
+                               mime="text/csv")
         else:
-            st.info("No rental log data to download.")
+            st.info("No data to download.")
+
 
 # ==============================================================================
-# RIGHT COLUMN: New Entry Form ONLY (unchanged)
+# RIGHT: New Rental Entry
 # ==============================================================================
 with right_col:
     st.markdown("### 📌 New Rental Entry")
+
+    # 1) choose mascot outside form so details update instantly
+    mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"].unique()))
+    mrow = inventory_df[inventory_df["Mascot_Name"]==mascot_choice].iloc[0]
+
+    # original detail logic, N/A stays N/A
+    def fmt_price(v):
+        if pd.isna(v): return "N/A"
+        try: return f"${int(float(v))}"
+        except: return str(v)
+
+    size_disp      = mrow.get("Size","N/A")      if pd.notna(mrow.get("Size"))      else "N/A"
+    weight_disp    = f"{mrow.get('Weight_kg')} kg" if pd.notna(mrow.get("Weight_kg")) else "N/A"
+    height_disp    = mrow.get("Height_cm","N/A") if pd.notna(mrow.get("Height_cm")) else "N/A"
+    qty_disp       = int(mrow.get("Quantity",0)) if pd.notna(mrow.get("Quantity"))   else "N/A"
+    status_disp    = mrow.get("Status","N/A")    if pd.notna(mrow.get("Status"))    else "N/A"
+
+    st.markdown("#### Mascot Details")
+    st.write(f"**Size:** {size_disp}")
+    st.write(f"**Weight:** {weight_disp}")
+    st.write(f"**Height:** {height_disp}")
+    st.write(f"**Quantity:** {qty_disp}")
+    st.write(f"**Rent Price:** {fmt_price(mrow.get('Rent_Price'))}")
+    st.write(f"**Sale Price:** {fmt_price(mrow.get('Sale_Price'))}")
+    st.write(f"**Status:** {status_disp}")
+
+    # 2) now the form for customer & dates
     with st.form("rental_form"):
-        mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"]))
-        customer_name = st.text_input("Customer Name:")
-        contact_phone = st.text_input("Contact Phone Number:")
+        customer_name    = st.text_input("Customer Name:")
+        contact_phone    = st.text_input("Contact Phone Number:")
         start_date_input = st.date_input("Start Date", value=datetime.today())
-        end_date_input = st.date_input("End Date", value=datetime.today())
-
-        mascot_row = inventory_df.query("Mascot_Name == @mascot_choice").iloc[0]
-
-        def format_price(v):
-            if pd.isna(v): return "N/A"
-            try: return f"${int(float(v))}"
-            except: return str(v)
-
-        st.write(f"**Size:** {mascot_row.get('Size','N/A')}")
-        st.write(f"**Weight:** {mascot_row.get('Weight_kg','N/A')} kg")
-        st.write(f"**Height:** {mascot_row.get('Height_cm','N/A')} cm")
-        st.write(f"**Quantity:** {int(mascot_row.get('Quantity',0))}")
-        st.write(f"**Rent Price:** {format_price(mascot_row.get('Rent_Price'))}")
-        st.write(f"**Sale Price:** {format_price(mascot_row.get('Sale_Price'))}")
-        st.write(f"**Status:** {mascot_row.get('Status','N/A')}")
+        end_date_input   = st.date_input("End Date",   value=datetime.today())
 
         if st.form_submit_button("📩 Submit Rental"):
-            # … keep your existing validation & INSERT logic here …
-            pass
+            if not customer_name:
+                st.warning("Enter a customer name.")
+            elif end_date_input < start_date_input:
+                st.warning("End date before start.")
+            else:
+                sd = datetime.combine(start_date_input, datetime.min.time())
+                ed = datetime.combine(end_date_input,   datetime.min.time())
+                total_qty = int(mrow.get("Quantity",0))
+                booked_ct = check_availability(rental_log_df, mascot_choice, sd, ed)
+
+                if booked_ct >= total_qty:
+                    st.error(f"All {total_qty} are booked for that period.")
+                else:
+                    conn = sqlite3.connect("rental_log.db")
+                    cur = conn.cursor()
+                    cur.execute(
+                        "INSERT INTO rentals (mascot_id, mascot_name, customer_name, contact_phone, start_date, end_date) "
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        (int(mrow["ID"]), mascot_choice, customer_name, contact_phone, start_date_input, end_date_input)
+                    )
+                    conn.commit()
+                    conn.close()
+                    st.success(f"Booked! ({booked_ct+1} of {total_qty})")
+                    st.experimental_rerun()
