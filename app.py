@@ -1,4 +1,37 @@
 import streamlit as st
+
+# ─────────── remove white-space ───────────
+st.markdown(
+    """
+    <style>
+      /* remove the big top and bottom padding from every page block */
+      .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+      }
+      /* collapse the extra margin under headers, forms, etc */
+      .css-1avcm0n, /* hr container */
+      .css-18e3th9 { /* main gap container */
+        margin-bottom: 0.25rem !important;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+# ─────────────────────────────────────────────
+
+import pandas as pd
+from datetime import datetime, timedelta
+import calendar
+import sqlite3
+
+# (…the rest of your code as-is…)
+
+
+
+
+
+import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import calendar
