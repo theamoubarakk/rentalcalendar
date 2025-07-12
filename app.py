@@ -31,19 +31,14 @@ def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
     df = df[df['Mascot_Name'] != '']
     return df
 
-# --- CHANGED: Updated database schema to include contact_phone ---
 def init_db(db_file="rental_log.db"):
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS rentals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mascot_id INTEGER,
-            mascot_name TEXT NOT NULL,
-            customer_name TEXT NOT NULL,
-            contact_phone TEXT, 
-            start_date DATE NOT NULL,
-            end_date DATE NOT NULL
+            id INTEGER PRIMARY KEY AUTOINCREMENT, mascot_id INTEGER, mascot_name TEXT NOT NULL,
+            customer_name TEXT NOT NULL, contact_phone TEXT, 
+            start_date DATE NOT NULL, end_date DATE NOT NULL
         )
     """)
     conn.commit()
@@ -53,7 +48,39 @@ def load_rental_log(db_file="rental_log.db"):
     conn = sqlite3.connect(db_file)
     df = pd.read_sql_query("SELECT * FROM rentals", conn)
     conn.close()
+    # Ensure date columns are in datetime format for comparison
+    df['start_date'] = pd.to_datetime(df['start_date'])
+    df['end_date'] = pd.to_datetime(df['end_date'])
     return df
+
+# --- NEW: Function to check for booking conflicts based on quantity ---
+def check_availability(log_df, mascot_name, start_date_req, end_date_req):
+    """
+    Checks how many units of a specific mascot are already booked during a given date range.
+
+    Args:
+        log_df (pd.DataFrame): The DataFrame of all current bookings.
+        mascot_name (str): The name of the mascot to check.
+        start_date_req (datetime): The requested start date for the new booking.
+        end_date_req (datetime): The requested end date for the new booking.
+
+    Returns:
+        int: The number of conflicting bookings.
+    """
+    if log_df.empty:
+        return 0
+
+    # Filter for the specific mascot
+    mascot_bookings = log_df[log_df['mascot_name'] == mascot_name].copy()
+
+    # Find bookings that overlap with the requested date range
+    # An overlap occurs if: (ExistingStart <= NewEnd) and (ExistingEnd >= NewStart)
+    conflicting_bookings = mascot_bookings[
+        (mascot_bookings['start_date'] <= end_date_req) & 
+        (mascot_bookings['end_date'] >= start_date_req)
+    ]
+    
+    return len(conflicting_bookings)
 
 # --- Initialize Database and Load Data ---
 init_db()
@@ -66,13 +93,14 @@ st.title("📅 Baba Jina Mascot Rental Calendar")
 if inventory_df.empty:
     st.stop()
 
-# --- Layout Definition (No changes here) ---
+# --- Layout Definition ---
 left_col, right_col = st.columns([3, 2], gap="large")
 
 # ==============================================================================
-# LEFT COLUMN: Calendar View and Controls (No changes here)
+# LEFT COLUMN: Calendar View and Controls
 # ==============================================================================
 with left_col:
+    # (No changes needed in this section, the logic remains the same)
     st.markdown("### 🗓️ Monthly Calendar")
     filter_col1, filter_col2 = st.columns(2)
     with filter_col1:
@@ -82,11 +110,8 @@ with left_col:
         month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
     
     filtered_log = rental_log_df.copy()
-    if not filtered_log.empty:
-        filtered_log["start_date"] = pd.to_datetime(filtered_log["start_date"], errors="coerce")
-        filtered_log["end_date"] = pd.to_datetime(filtered_log["end_date"], errors="coerce")
-        if selected_mascot != "All":
-            filtered_log = filtered_log[filtered_log["mascot_name"] == selected_mascot]
+    if not filtered_log.empty and selected_mascot != "All":
+        filtered_log = filtered_log[filtered_log["mascot_name"] == selected_mascot]
 
     month_start = datetime(month_filter.year, month_filter.month, 1)
     last_day = calendar.monthrange(month_filter.year, month_filter.month)[1]
@@ -124,7 +149,7 @@ with left_col:
                     </div>""", unsafe_allow_html=True)
 
 # ==============================================================================
-# RIGHT COLUMN: New Entry and Deletion Forms
+# RIGHT COLUMN: Forms with Quantity Check
 # ==============================================================================
 with right_col:
     st.markdown("### 📌 New Rental Entry")
@@ -132,13 +157,12 @@ with right_col:
     with st.form("rental_form"):
         mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"].unique()))
         customer_name = st.text_input("Customer Name:")
-        # --- ADDED: Contact Phone Number Input Field ---
         contact_phone = st.text_input("Contact Phone Number:")
-        
-        start_date = st.date_input("Start Date", value=datetime.today())
-        end_date = st.date_input("End Date", value=datetime.today())
+        start_date_input = st.date_input("Start Date", value=datetime.today())
+        end_date_input = st.date_input("End Date", value=datetime.today())
 
         mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
+        # (Mascot details display logic is unchanged)
         def format_price(value):
             if pd.isna(value): return 'N/A'
             try: return f"${int(float(value))}"
@@ -158,22 +182,39 @@ with right_col:
         st.write(f"**Status:** {status_display}")
 
         if st.form_submit_button("📩 Submit Rental"):
+            # --- MODIFIED: Added booking validation logic ---
             if not customer_name:
                 st.warning("Please enter a customer name.")
+            elif end_date_input < start_date_input:
+                st.warning("End date cannot be before start date.")
             else:
-                # --- CHANGED: Updated INSERT statement to include contact_phone ---
-                conn = sqlite3.connect("rental_log.db")
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO rentals (mascot_id, mascot_name, customer_name, contact_phone, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)",
-                    (int(mascot_row["ID"]), mascot_row["Mascot_Name"], customer_name, contact_phone, start_date, end_date)
-                )
-                conn.commit()
-                conn.close()
-                st.success("✅ Rental submitted and logged to database!")
-                st.rerun()
+                # Convert date inputs to datetime for comparison
+                start_date_dt = datetime.combine(start_date_input, datetime.min.time())
+                end_date_dt = datetime.combine(end_date_input, datetime.min.time())
 
-    # --- Delete Booking Section ---
+                # Get total available quantity for the selected mascot
+                total_quantity = int(mascot_row.get('Quantity', 0))
+
+                # Check how many are already booked
+                booked_count = check_availability(rental_log_df, mascot_choice, start_date_dt, end_date_dt)
+
+                if booked_count >= total_quantity:
+                    # If all units are booked, show an error and stop
+                    st.error(f"⚠️ Booking Failed: All {total_quantity} units of '{mascot_choice}' are already booked for this period.")
+                else:
+                    # If a slot is available, proceed with saving the booking
+                    conn = sqlite3.connect("rental_log.db")
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "INSERT INTO rentals (mascot_id, mascot_name, customer_name, contact_phone, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)",
+                        (int(mascot_row["ID"]), mascot_choice, customer_name, contact_phone, start_date_input, end_date_input)
+                    )
+                    conn.commit()
+                    conn.close()
+                    st.success(f"✅ Rental submitted! ({booked_count + 1} of {total_quantity} booked)")
+                    st.rerun()
+
+    # --- Delete Booking Section (No changes needed) ---
     st.markdown("---")
     st.markdown("### 🗑️ Delete Rental Booking")
     if rental_log_df.empty:
@@ -181,7 +222,7 @@ with right_col:
     else:
         display_to_id_map = {}
         for index, row in rental_log_df.iterrows():
-            display_str = f"{row.get('customer_name', 'N/A')} - {row['mascot_name']} ({row.get('start_date', 'N/A')} to {row.get('end_date', 'N/A')})"
+            display_str = f"{row.get('customer_name', 'N/A')} - {row['mascot_name']} ({pd.to_datetime(row.get('start_date')).strftime('%Y-%m-%d')} to {pd.to_datetime(row.get('end_date')).strftime('%Y-%m-%d')})"
             display_to_id_map[display_str] = row['id']
             
         booking_to_delete_display = st.selectbox("Select booking to delete:", list(display_to_id_map.keys()))
@@ -196,15 +237,10 @@ with right_col:
             st.success("🗑️ Booking deleted successfully from database.")
             st.rerun()
 
-    # --- ADDED: Download CSV Button ---
     st.markdown("---")
     if not rental_log_df.empty:
-        # Convert DataFrame to CSV format in memory
         csv = rental_log_df.to_csv(index=False).encode('utf-8')
-        
         st.download_button(
            label="📥 Download Rental Log as CSV",
-           data=csv,
-           file_name='rental_log.csv',
-           mime='text/csv',
+           data=csv, file_name='rental_log.csv', mime='text/csv',
         )
