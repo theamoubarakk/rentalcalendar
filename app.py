@@ -180,7 +180,10 @@ with right:
                 conn.commit()
                 conn.close()
                 st.success("✅ Rental saved.")
-                # no rerun call
+
+                # ─────── Clear the cache and reload immediately ───────
+                load_rental_log.clear()
+                rental_log_df[:] = load_rental_log()
 
     st.markdown("---")
 
@@ -189,23 +192,24 @@ with right:
     if rental_log_df.empty:
         st.info("No bookings to delete.")
     else:
-        disp_map = {}
-        for _, x in rental_log_df.iterrows():
-            label = (
-                f"{x['customer_name']} | {x['customer_phone']} | "
-                f"{x['mascot_name']} ({x['start_date'].date()}→{x['end_date'].date()})"
-            )
-            disp_map[label] = x["id"]
+        disp_map = {
+            f"{x['customer_name']} | {x['customer_phone']} | {x['mascot_name']} "
+            f"({x['start_date'].date()}→{x['end_date'].date()})": x["id"]
+            for _, x in rental_log_df.iterrows()
+        }
         choice = st.selectbox("Which booking?", list(disp_map.keys()))
         if st.button("❌ Delete Booking"):
             bid = disp_map[choice]
             conn = sqlite3.connect(DB)
-            c = conn.cursor()
-            c.execute("DELETE FROM rentals WHERE id=?", (bid,))
+            cur  = conn.cursor()
+            cur.execute("DELETE FROM rentals WHERE id=?", (bid,))
             conn.commit()
             conn.close()
             st.success("🗑️ Deleted.")
-            # no rerun call
+
+            # ─────── Clear the cache and reload immediately ───────
+            load_rental_log.clear()
+            rental_log_df[:] = load_rental_log()
 
     st.markdown("---")
 
