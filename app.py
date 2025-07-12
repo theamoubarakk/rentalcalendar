@@ -22,12 +22,13 @@ st.markdown("""
         margin-top: 0.25rem !important;
         margin-bottom: 0.25rem !important;
       }
-      /* pull those specific H3s up even tighter */
+      /* pull the H3s even further up */
       .stMarkdown h3 {
-        margin-top: 0 !important;
+        margin-top: -0.5rem !important;
       }
     </style>
 """, unsafe_allow_html=True)
+
 
 st.set_page_config(layout="wide")
 
