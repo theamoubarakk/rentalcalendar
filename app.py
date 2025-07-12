@@ -64,6 +64,7 @@ def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
     df['Mascot_Name'] = df['Mascot_Name'].str.strip()
     return df[df['Mascot_Name'] != '']
 
+
 def init_db(db_file="rental_log.db"):
     conn = sqlite3.connect(db_file)
     conn.execute(
@@ -82,6 +83,7 @@ def init_db(db_file="rental_log.db"):
     conn.commit()
     conn.close()
 
+
 def load_rental_log(db_file="rental_log.db"):
     conn = sqlite3.connect(db_file)
     df = pd.read_sql("SELECT * FROM rentals", conn)
@@ -90,6 +92,7 @@ def load_rental_log(db_file="rental_log.db"):
         df['start_date'] = pd.to_datetime(df['start_date'])
         df['end_date']   = pd.to_datetime(df['end_date'])
     return df
+
 
 def check_availability(log_df, name, start_dt, end_dt):
     if log_df.empty:
@@ -138,21 +141,29 @@ with right_col:
         elif ed_in < sd_in:
             st.warning("End date cannot be before start date.")
         else:
-            # write to DB
-            conn = sqlite3.connect("rental_log.db")
-            row  = inventory_df.query("Mascot_Name==@choice").iloc[0]
-            conn.execute(
-                "INSERT INTO rentals (mascot_id,mascot_name,customer_name,"
-                "contact_phone,start_date,end_date) VALUES (?,?,?,?,?,?)",
-                (int(row.ID), choice, customer, phone, sd_in, ed_in)
-            )
-            conn.commit()
-            conn.close()
+            # compute availability
+            row   = inventory_df.query("Mascot_Name==@choice").iloc[0]
+            total = int(row.Quantity)
+            sdt   = datetime.combine(sd_in, datetime.min.time())
+            edt   = datetime.combine(ed_in, datetime.min.time())
+            used  = check_availability(rental_log_df, choice, sdt, edt)
+            if used >= total:
+                st.error(f"⚠️ Only {total} unit{'s' if total != 1 else ''} available (already {used} booked for selected dates).")
+            else:
+                # write to DB
+                conn = sqlite3.connect("rental_log.db")
+                conn.execute(
+                    "INSERT INTO rentals (mascot_id,mascot_name,customer_name,"
+                    "contact_phone,start_date,end_date) VALUES (?,?,?,?,?,?)",
+                    (int(row.ID), choice, customer, phone, sd_in, ed_in)
+                )
+                conn.commit()
+                conn.close()
 
-            # reload log so calendar updates immediately
-            rental_log_df = load_rental_log()
+                # reload log so calendar updates
+                rental_log_df = load_rental_log()
 
-            st.success(f"✅ Rental submitted! ({check_availability(rental_log_df, choice, datetime.combine(sd_in, datetime.min.time()), datetime.combine(ed_in, datetime.min.time()))}/{int(row.Quantity)})")
+                st.success(f"✅ Rental submitted! ({used+1}/{total})")
 
     # Mascot Details section
     st.markdown("---")
