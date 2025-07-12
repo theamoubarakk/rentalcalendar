@@ -4,16 +4,14 @@ from datetime import datetime, timedelta
 import calendar
 import sqlite3
 
-# ─────────── remove white-space ───────────
+# — your existing block-container CSS here —
 st.markdown(
     """
     <style>
-      /* collapse all block padding */
       .block-container {
         padding-top: 0 !important;
         padding-bottom: 0 !important;
       }
-      /* tighten margins under headers/forms */
       .css-1avcm0n,
       .css-18e3th9 {
         margin-bottom: 0.25rem !important;
@@ -22,18 +20,28 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-# ─────────────────────────────────────────────
+
+# ↓ NEW: collapse markdown heading margins ↓
+st.markdown(
+    """
+    <style>
+      .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        margin-top: 0.25rem !important;
+        margin-bottom: 0.25rem !important;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.set_page_config(layout="wide")
 
-# ─── HEADER ROW: Title on left, Hi-Res Logo on right ───
-hdr_title, hdr_logo = st.columns([9, 1], gap="small")
-with hdr_title:
-    st.markdown("### 📅 Baba Jina Mascot Rental Calendar")
+# ─── top header + logo ───
+hdr_logo, hdr_title = st.columns([1, 9], gap="small")
 with hdr_logo:
-    # use a 2× resolution file, then display at 200px wide
     st.image("logo.png", width=200)
-
+with hdr_title:
+    st.title("📅 Baba Jina Mascot Rental Calendar")
 
 # --- Data loading & core functions ---
 @st.cache_data
