@@ -105,10 +105,11 @@ with left_col:
         else:
             display_text = f"❌ {', '.join(booked['mascot_name'].unique())}"
             tooltip_parts = [
-                f"{row['mascot_name']}: {row.get('customer_name', 'N/A')} ({row.get('contact_phone', 'N/A')})"
+                f"{str(row['mascot_name']).replace('"', '"')}: {str(row.get('customer_name', 'N/A')).replace('"', '"')} ({str(row.get('contact_phone', 'N/A')).replace('"', '"')})"
                 for _, row in booked.iterrows()
             ]
-            tooltip_text = "\n".join(tooltip_parts)
+            tooltip_text = "
+".join(tooltip_parts)
             return (display_text, tooltip_text)
 
     calendar_df["StatusTuple"] = calendar_df["Date"].apply(get_booking_status)
@@ -119,21 +120,20 @@ with left_col:
     for i, day_name in enumerate(days):
         header_cols[i].markdown(f"<div style='text-align:center;font-weight:bold;'>{day_name}</div>", unsafe_allow_html=True)
     
-    # --- NEW, SAFER METHOD FOR DISPLAYING CALENDAR DAYS ---
     for week in calendar.monthcalendar(month_filter.year, month_filter.month):
         cols = st.columns(7)
         for i, day_num in enumerate(week):
-            with cols[i]:
-                if day_num != 0:
-                    date = datetime(month_filter.year, month_filter.month, day_num)
-                    status_text, tooltip_info = calendar_df.loc[calendar_df["Date"] == date, "StatusTuple"].iloc[0]
-                    
-                    # Use a container with a border instead of custom HTML/CSS
-                    with st.container(height=100, border=True):
-                        st.markdown(f"**{day_num}**")
-                        # The help parameter creates the safe tooltip
-                        st.markdown(status_text, help=tooltip_info)
-
+            if day_num != 0:
+                date = datetime(month_filter.year, month_filter.month, day_num)
+                status_text, tooltip_info = calendar_df.loc[calendar_df["Date"] == date, "StatusTuple"].iloc[0]
+                bg_color = "#f9e5e5" if "❌" in status_text else "#e6ffea"
+                icon, *text = status_text.split(" ", 1)
+                cols[i].markdown(f"""
+                    <div title="{tooltip_info}" style='background-color:{bg_color};border-radius:10px;padding:10px;text-align:center;
+                                box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:8px;min-height:80px;'>
+                        <strong>{day_num}</strong><br><div style='font-size:0.9em;word-wrap:break-word;'>{icon} {text[0] if text else ''}</div>
+                    </div>""", unsafe_allow_html=True)
+    
     st.markdown("---")
     delete_col, download_col = st.columns(2)
 
@@ -161,7 +161,13 @@ with left_col:
         st.markdown("### 📥 Download Rental Log")
         if not rental_log_df.empty:
             csv = rental_log_df.to_csv(index=False).encode('utf-8')
-            st.download_button(label="Download Log as CSV", data=csv, file_name=f"rental_log_{datetime.now().strftime('%Y-%m-%d')}.csv', mime='text/csv',)
+            # --- CORRECTED LINE: Fixed the mismatched quote in the file_name f-string ---
+            st.download_button(
+               label="Download Log as CSV",
+               data=csv,
+               file_name=f"rental_log_{datetime.now().strftime('%Y-%m-%d')}.csv",
+               mime='text/csv'
+            )
         else:
             st.info("No rental log data to download.")
 
