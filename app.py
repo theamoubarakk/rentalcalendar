@@ -98,25 +98,24 @@ with left_col:
     date_range = pd.date_range(start=month_start, end=month_end)
     calendar_df = pd.DataFrame({"Date": date_range})
 
-    # --- CHANGED: This function now returns a tuple: (display_text, tooltip_text) ---
+    # --- CORRECTED: This function now sanitizes the tooltip data ---
     def get_booking_status(date):
-        # Find all bookings that overlap with this specific day
         booked = filtered_log[(filtered_log["start_date"] <= date) & (filtered_log["end_date"] >= date)]
         
         if booked.empty:
             return ("✅ Available", "This day is available for booking.")
         else:
-            # Prepare the main text to display in the box
             display_text = f"❌ {', '.join(booked['mascot_name'].unique())}"
             
-            # Prepare the detailed text for the hover tooltip
             tooltip_parts = []
             for _, row in booked.iterrows():
-                customer = row.get('customer_name', 'N/A')
-                phone = row.get('contact_phone', 'N/A')
-                tooltip_parts.append(f"{row['mascot_name']}: {customer} ({phone})")
+                # Sanitize each piece of data by replacing double quotes
+                mascot = str(row['mascot_name']).replace('"', '"')
+                customer = str(row.get('customer_name', 'N/A')).replace('"', '"')
+                phone = str(row.get('contact_phone', 'N/A')).replace('"', '"')
+                
+                tooltip_parts.append(f"{mascot}: {customer} ({phone})")
             
-            # Use an HTML entity for newlines in the title attribute
             tooltip_text = "
 ".join(tooltip_parts)
             
@@ -135,13 +134,11 @@ with left_col:
         for i, day_num in enumerate(week):
             if day_num != 0:
                 date = datetime(month_filter.year, month_filter.month, day_num)
-                # --- CHANGED: Unpack the tuple to get both display text and tooltip text ---
                 status_text, tooltip_info = calendar_df.loc[calendar_df["Date"] == date, "StatusTuple"].iloc[0]
                 
                 bg_color = "#f9e5e5" if "❌" in status_text else "#e6ffea"
                 icon, *text = status_text.split(" ", 1)
                 
-                # --- CHANGED: Added the `title` attribute to the div for the hover effect ---
                 cols[i].markdown(f"""
                     <div title="{tooltip_info}" style='background-color:{bg_color};border-radius:10px;padding:10px;text-align:center;
                                 box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:8px;min-height:80px;'>
