@@ -66,7 +66,7 @@ def check_availability(log_df, mascot_name, start_dt, end_dt):
     bookings = log_df[log_df['mascot_name'] == mascot_name]
     conflicts = bookings[
         (bookings['start_date'] <= end_dt) &
-        (bookings['end_date'] >= start_dt)
+        (bookings['end_date']   >= start_dt)
     ]
     return len(conflicts)
 
@@ -239,15 +239,13 @@ with right_col:
         except:
             return str(v)
 
-    size_disp     = mascot_row.get("Size") if pd.notna(mascot_row.get("Size")) else "N/A"
-    weight_disp   = (f"{mascot_row.get('Weight_kg')} kg"
-                     if pd.notna(mascot_row.get("Weight_kg")) else "N/A")
-    height_disp   = mascot_row.get("Height_cm") if pd.notna(mascot_row.get("Height_cm")) else "N/A"
-    quantity_disp = (int(mascot_row.get("Quantity"))
-                     if pd.notna(mascot_row.get("Quantity")) else "N/A")
-    rent_disp     = _fmt_price(mascot_row.get("Rent_Price"))
-    sale_disp     = _fmt_price(mascot_row.get("Sale_Price"))
-    status_disp   = mascot_row.get("Status") if pd.notna(mascot_row.get("Status")) else "N/A"
+    size_disp     = mascot_row["Size"]      if pd.notna(mascot_row["Size"])      else "N/A"
+    weight_disp   = f"{mascot_row['Weight_kg']} kg" if pd.notna(mascot_row["Weight_kg"]) else "N/A"
+    height_disp   = mascot_row["Height_cm"] if pd.notna(mascot_row["Height_cm"]) else "N/A"
+    quantity_disp = int(mascot_row["Quantity"]) if pd.notna(mascot_row["Quantity"]) else "N/A"
+    rent_disp     = _fmt_price(mascot_row["Rent_Price"])
+    sale_disp     = _fmt_price(mascot_row["Sale_Price"])
+    status_disp   = mascot_row["Status"]    if pd.notna(mascot_row["Status"])    else "N/A"
 
     st.markdown("### 📋 Mascot Details")
     det_c1, det_c2 = st.columns(2)
@@ -265,3 +263,24 @@ with right_col:
     if submitted:
         if not customer_name:
             st.warning("Please enter a customer name.")
+        elif end_date_input < start_date_input:
+            st.warning("End date cannot be before start date.")
+        else:
+            sd         = datetime.combine(start_date_input, datetime.min.time())
+            ed         = datetime.combine(end_date_input,   datetime.min.time())
+            total_qty  = int(mascot_row["Quantity"])
+            booked_cnt = check_availability(rental_log_df, mascot_choice, sd, ed)
+
+            if booked_cnt >= total_qty:
+                st.error(f"⚠️ Booking Failed: All {total_qty} units of '{mascot_choice}' are already booked for this period.")
+            else:
+                conn = sqlite3.connect("rental_log.db")
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO rentals (mascot_id, mascot_name, customer_name, contact_phone, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)",
+                    (int(mascot_row["ID"]), mascot_choice, customer_name, contact_phone, start_date_input, end_date_input)
+                )
+                conn.commit()
+                conn.close()
+                st.success(f"✅ Rental submitted! ({booked_cnt + 1} of {total_qty} booked)")
+                st.rerun()
