@@ -26,13 +26,14 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── HEADER ROW: Title on left, Logo on right ───
+# ─── HEADER ROW: Title on left, Hi-Res Logo on right ───
 hdr_title, hdr_logo = st.columns([9, 1], gap="small")
 with hdr_title:
     st.markdown("### 📅 Baba Jina Mascot Rental Calendar")
 with hdr_logo:
-    # make sure logo.png is in your working dir (same folder as app.py)
-    st.image("logo.png", width=100)
+    # use a 2× resolution file, then display at 200px wide
+    st.image("logo@2x.png", width=200)
+
 
 # --- Data loading & core functions ---
 @st.cache_data
