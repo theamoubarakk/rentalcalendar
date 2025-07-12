@@ -111,7 +111,7 @@ with left_col:
             (filtered_log["end_date"]   >= date)
         ]
         if booked.empty:
-            return ("✅ Available", "This day is available for booking.")
+            return ("✅", "This day is available for booking.")
         display_text = f"❌ {', '.join(booked['mascot_name'].unique())}"
         tooltip_parts = []
         for _, row in booked.iterrows():
