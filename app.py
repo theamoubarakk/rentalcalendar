@@ -105,9 +105,9 @@ inventory_df  = load_inventory_from_excel()
 rental_log_df = load_rental_log()
 
 # --- Main App ---
-st.title("📅 Baba Jina Mascot Rental Calendar")
-if inventory_df.empty:
-    st.stop()
+#st.title("📅 Baba Jina Mascot Rental Calendar")
+#if inventory_df.empty:
+    #st.stop()
 
 # --- Layout Definition ---
 left_col, right_col = st.columns([3, 2], gap="large")
