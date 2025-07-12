@@ -98,18 +98,27 @@ with left_col:
     date_range = pd.date_range(start=month_start, end=month_end)
     calendar_df = pd.DataFrame({"Date": date_range})
 
+    # --- CORRECTED: This function now sanitizes the tooltip data ---
     def get_booking_status(date):
         booked = filtered_log[(filtered_log["start_date"] <= date) & (filtered_log["end_date"] >= date)]
+        
         if booked.empty:
             return ("✅ Available", "This day is available for booking.")
         else:
             display_text = f"❌ {', '.join(booked['mascot_name'].unique())}"
-            tooltip_parts = [
-                f"{str(row['mascot_name']).replace('"', '"')}: {str(row.get('customer_name', 'N/A')).replace('"', '"')} ({str(row.get('contact_phone', 'N/A')).replace('"', '"')})"
-                for _, row in booked.iterrows()
-            ]
-            tooltip_text = "
-".join(tooltip_parts)
+            
+            tooltip_parts = []
+            for _, row in booked.iterrows():
+                # Sanitize each piece of data by replacing double quotes
+                mascot = str(row['mascot_name']).replace('"', '"')
+                customer = str(row.get('customer_name', 'N/A')).replace('"', '"')
+                phone = str(row.get('contact_phone', 'N/A')).replace('"', '"')
+                
+                tooltip_parts.append(f"{mascot}: {customer} ({phone})")
+            
+            # Use a proper newline join instead of a literal line break
+            tooltip_text = "\n".join(tooltip_parts)
+            
             return (display_text, tooltip_text)
 
     calendar_df["StatusTuple"] = calendar_df["Date"].apply(get_booking_status)
@@ -126,8 +135,10 @@ with left_col:
             if day_num != 0:
                 date = datetime(month_filter.year, month_filter.month, day_num)
                 status_text, tooltip_info = calendar_df.loc[calendar_df["Date"] == date, "StatusTuple"].iloc[0]
+                
                 bg_color = "#f9e5e5" if "❌" in status_text else "#e6ffea"
                 icon, *text = status_text.split(" ", 1)
+                
                 cols[i].markdown(f"""
                     <div title="{tooltip_info}" style='background-color:{bg_color};border-radius:10px;padding:10px;text-align:center;
                                 box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:8px;min-height:80px;'>
@@ -146,7 +157,9 @@ with left_col:
             for index, row in rental_log_df.iterrows():
                 display_str = f"{row.get('customer_name', 'N/A')} - {row['mascot_name']} ({pd.to_datetime(row.get('start_date')).strftime('%Y-%m-%d')} to {pd.to_datetime(row.get('end_date')).strftime('%Y-%m-%d')})"
                 display_to_id_map[display_str] = row['id']
+            
             booking_to_delete_display = st.selectbox("Select booking to delete:", list(display_to_id_map.keys()), key="delete_selectbox")
+            
             if st.button("❌ Delete Booking"):
                 booking_id_to_delete = display_to_id_map[booking_to_delete_display]
                 conn = sqlite3.connect("rental_log.db")
@@ -161,15 +174,15 @@ with left_col:
         st.markdown("### 📥 Download Rental Log")
         if not rental_log_df.empty:
             csv = rental_log_df.to_csv(index=False).encode('utf-8')
-            # --- CORRECTED LINE: Fixed the mismatched quote in the file_name f-string ---
             st.download_button(
                label="Download Log as CSV",
                data=csv,
                file_name=f"rental_log_{datetime.now().strftime('%Y-%m-%d')}.csv",
-               mime='text/csv'
+               mime='text/csv',
             )
         else:
             st.info("No rental log data to download.")
+
 
 # ==============================================================================
 # RIGHT COLUMN: New Entry Form Only
@@ -189,23 +202,19 @@ with right_col:
             if pd.isna(value): return 'N/A'
             try: return f"${int(float(value))}"
             except (ValueError, TypeError): return str(value)
-            
         size_display = mascot_row.get('Size', 'N/A') if pd.notna(mascot_row.get('Size')) else 'N/A'
         weight_display = f"{mascot_row.get('Weight_kg')} kg" if pd.notna(mascot_row.get('Weight_kg')) else 'N/A'
         height_display = mascot_row.get('Height_cm', 'N/A') if pd.notna(mascot_row.get('Height_cm')) else 'N/A'
-        
+        quantity_display = int(mascot_row.get('Quantity', 0)) if pd.notna(mascot_row.get('Quantity')) else 'N/A'
+        status_display = mascot_row.get('Status', 'N/A') if pd.notna(mascot_row.get('Status')) else 'N/A'
         st.markdown("### 📋 Mascot Details")
-        st.write(f"**Size:** {size_display}")
-        st.write(f"**Weight:** {weight_display}")
-        st.write(f"**Height:** {height_display}")
-        
-        qty_col, rent_col, sale_col = st.columns(3)
-        with qty_col:
-            st.metric(label="Quantity", value=int(mascot_row.get('Quantity', 0)))
-        with rent_col:
-            st.metric(label="Rent Price", value=format_price(mascot_row.get('Rent_Price')))
-        with sale_col:
-            st.metric(label="Sale Price", value=format_price(mascot_row.get('Sale_Price')))
+        st.write(f"*Size:* {size_display}")
+        st.write(f"*Weight:* {weight_display}")
+        st.write(f"*Height:* {height_display}")
+        st.write(f"*Quantity:* {quantity_display}")
+        st.write(f"*Rent Price:* {format_price(mascot_row.get('Rent_Price'))}")
+        st.write(f"*Sale Price:* {format_price(mascot_row.get('Sale_Price'))}")
+        st.write(f"*Status:* {status_display}")
 
         if st.form_submit_button("📩 Submit Rental"):
             if not customer_name:
