@@ -228,18 +228,26 @@ with right_col:
 
         submitted = st.form_submit_button("📩 Submit Rental")
 
-    # 3) Mascot Details BELOW the form (updates immediately)
+    # 3) Mascot Details BELOW the form (updates immediately), NaN → "N/A"
     mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
-    def _fmt_price(v):
-        if pd.isna(v): return "N/A"
-        try: return f"${int(float(v))}"
-        except: return str(v)
 
-    size_disp     = mascot_row.get('Size', 'N/A')
-    weight_disp   = f"{mascot_row.get('Weight_kg')} kg" if pd.notna(mascot_row.get('Weight_kg')) else 'N/A'
-    height_disp   = mascot_row.get('Height_cm', 'N/A')
-    quantity_disp = int(mascot_row.get('Quantity', 0)) if pd.notna(mascot_row.get('Quantity')) else 'N/A'
-    status_disp   = mascot_row.get('Status', 'N/A')
+    def _fmt_price(v):
+        if pd.isna(v):
+            return "N/A"
+        try:
+            return f"${int(float(v))}"
+        except:
+            return str(v)
+
+    size_disp     = mascot_row.get("Size") if pd.notna(mascot_row.get("Size")) else "N/A"
+    weight_disp   = (f"{mascot_row.get('Weight_kg')} kg"
+                     if pd.notna(mascot_row.get("Weight_kg")) else "N/A")
+    height_disp   = mascot_row.get("Height_cm") if pd.notna(mascot_row.get("Height_cm")) else "N/A"
+    quantity_disp = (int(mascot_row.get("Quantity"))
+                     if pd.notna(mascot_row.get("Quantity")) else "N/A")
+    rent_disp     = _fmt_price(mascot_row.get("Rent_Price"))
+    sale_disp     = _fmt_price(mascot_row.get("Sale_Price"))
+    status_disp   = mascot_row.get("Status") if pd.notna(mascot_row.get("Status")) else "N/A"
 
     st.markdown("### 📋 Mascot Details")
     det_c1, det_c2 = st.columns(2)
@@ -249,44 +257,11 @@ with right_col:
         st.write(f"*Height:* {height_disp}")
     with det_c2:
         st.write(f"*Quantity:* {quantity_disp}")
-        st.write(f"*Rent Price:* {_fmt_price(mascot_row.get('Rent_Price'))}")
-        st.write(f"*Sale Price:* {_fmt_price(mascot_row.get('Sale_Price'))}")
+        st.write(f"*Rent Price:* {rent_disp}")
+        st.write(f"*Sale Price:* {sale_disp}")
     st.write(f"*Status:* {status_disp}")
 
     # 4) Submission logic unchanged
     if submitted:
         if not customer_name:
             st.warning("Please enter a customer name.")
-        elif end_date_input < start_date_input:
-            st.warning("End date cannot be before start date.")
-        else:
-            sd         = datetime.combine(start_date_input, datetime.min.time())
-            ed         = datetime.combine(end_date_input,   datetime.min.time())
-            total_qty  = int(mascot_row.get('Quantity', 0))
-            booked_cnt = check_availability(rental_log_df, mascot_choice, sd, ed)
-
-            if booked_cnt >= total_qty:
-                st.error(
-                    f"⚠️ Booking Failed: All {total_qty} units of "
-                    f"'{mascot_choice}' are already booked for this period."
-                )
-            else:
-                conn = sqlite3.connect("rental_log.db")
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO rentals "
-                    "(mascot_id, mascot_name, customer_name, contact_phone, start_date, end_date) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (
-                        int(mascot_row["ID"]),
-                        mascot_choice,
-                        customer_name,
-                        contact_phone,
-                        start_date_input,
-                        end_date_input
-                    )
-                )
-                conn.commit()
-                conn.close()
-                st.success(f"✅ Rental submitted! ({booked_cnt + 1} of {total_qty} booked)")
-                st.rerun()
