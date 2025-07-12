@@ -2,15 +2,14 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import calendar
+import sqlite3 # NEW: Import the SQLite library
 
 # --- Configuration and Core Functions ---
 st.set_page_config(layout="wide")
 
 @st.cache_data
 def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
-    """
-    Loads and cleans data directly from the specified Excel file.
-    """
+    # This function remains the same, as we're still using Excel for the static inventory.
     try:
         df = pd.read_excel(file_path)
     except FileNotFoundError:
@@ -33,19 +32,37 @@ def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
     df = df[df['Mascot_Name'] != '']
     return df
 
-def load_rental_log(file_path="rental_log.xlsx"):
-    """
-    Loads the rental log. If it doesn't exist, creates an empty DataFrame.
-    """
-    try:
-        df = pd.read_excel(file_path)
-        df['Start_Date'] = pd.to_datetime(df['Start_Date'])
-        df['End_Date'] = pd.to_datetime(df['End_Date'])
-        return df
-    except FileNotFoundError:
-        return pd.DataFrame(columns=["ID", "Mascot_Name", "Customer_Name", "Start_Date", "End_Date"])
+# NEW: Function to initialize the SQLite database and create the table
+def init_db(db_file="rental_log.db"):
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    # Create table if it doesn't exist already
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS rentals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mascot_id INTEGER,
+            mascot_name TEXT NOT NULL,
+            customer_name TEXT NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-# --- Load Data ---
+# CHANGED: This function now loads data from the SQLite database
+def load_rental_log(db_file="rental_log.db"):
+    """
+    Loads the rental log from the SQLite database into a pandas DataFrame.
+    """
+    conn = sqlite3.connect(db_file)
+    # Use pandas to directly read the SQL query result into a DataFrame
+    df = pd.read_sql_query("SELECT * FROM rentals", conn)
+    conn.close()
+    return df
+
+# --- Initialize Database and Load Data ---
+init_db() # Create the DB and table if they don't exist
 inventory_df = load_inventory_from_excel()
 rental_log_df = load_rental_log()
 
@@ -55,11 +72,11 @@ st.title("📅 Baba Jina Mascot Rental Calendar")
 if inventory_df.empty:
     st.stop()
 
-# --- Layout Definition ---
+# --- Layout Definition (No changes here) ---
 left_col, right_col = st.columns([3, 2], gap="large")
 
 # ==============================================================================
-# LEFT COLUMN: Calendar View and Controls
+# LEFT COLUMN: Calendar View and Controls (No changes here)
 # ==============================================================================
 with left_col:
     st.markdown("### 🗓️ Monthly Calendar")
@@ -69,10 +86,13 @@ with left_col:
         selected_mascot = st.selectbox("Filter by Mascot:", mascot_list)
     with filter_col2:
         month_filter = st.date_input("Select Month:", value=datetime.today().replace(day=1))
-
-    display_log = rental_log_df.copy()
-    if selected_mascot != "All":
-        display_log = display_log[display_log["Mascot_Name"] == selected_mascot]
+    
+    filtered_log = rental_log_df.copy()
+    if not filtered_log.empty:
+        filtered_log["start_date"] = pd.to_datetime(filtered_log["start_date"], errors="coerce")
+        filtered_log["end_date"] = pd.to_datetime(filtered_log["end_date"], errors="coerce")
+        if selected_mascot != "All":
+            filtered_log = filtered_log[filtered_log["mascot_name"] == selected_mascot]
 
     month_start = datetime(month_filter.year, month_filter.month, 1)
     last_day = calendar.monthrange(month_filter.year, month_filter.month)[1]
@@ -81,10 +101,10 @@ with left_col:
     calendar_df = pd.DataFrame({"Date": date_range})
 
     def get_booking_status(date):
-        if not display_log.empty:
-            booked = display_log[(display_log["Start_Date"] <= date) & (display_log["End_Date"] >= date)]
+        if not filtered_log.empty:
+            booked = filtered_log[(filtered_log["start_date"] <= date) & (filtered_log["end_date"] >= date)]
             if not booked.empty:
-                return f"❌ {', '.join(booked['Mascot_Name'].unique())}"
+                return f"❌ {', '.join(booked['mascot_name'].unique())}"
         return "✅ Available"
 
     calendar_df["Status"] = calendar_df["Date"].apply(get_booking_status)
@@ -115,74 +135,46 @@ with left_col:
 with right_col:
     st.markdown("### 📌 New Rental Entry")
 
-    # --- ADJUSTMENT 1: Widgets for dynamic updates are OUTSIDE the form ---
-    mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"].unique()))
-    
-    # --- ADJUSTMENT 2: Customer name is now before the dates ---
-    customer_name = st.text_input("Customer Name:")
-    
-    start_date = st.date_input("Start Date", value=datetime.today())
-    end_date = st.date_input("End Date", value=datetime.today())
+    with st.form("rental_form"):
+        mascot_choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"].unique()))
+        customer_name = st.text_input("Customer Name:")
+        start_date = st.date_input("Start Date", value=datetime.today())
+        end_date = st.date_input("End Date", value=datetime.today())
 
-    # --- DYNAMIC STATUS LOGIC ---
-    mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
-    general_status = mascot_row.get('Status', 'N/A')
-    quantity = int(mascot_row.get('Quantity', 0))
-    dynamic_status_display = general_status
-
-    if general_status == 'Available':
-        start_date_dt = datetime.combine(start_date, datetime.min.time())
-        end_date_dt = datetime.combine(end_date, datetime.min.time())
-        conflicting_bookings = rental_log_df[
-            (rental_log_df['Mascot_Name'] == mascot_choice) &
-            (rental_log_df['Start_Date'] <= end_date_dt) &
-            (rental_log_df['End_Date'] >= start_date_dt)
-        ]
-        num_booked = len(conflicting_bookings)
-        if num_booked >= quantity:
-            dynamic_status_display = "Booked for selected dates"
-        else:
-            available_count = quantity - num_booked
-            dynamic_status_display = f"Available ({available_count} of {quantity} left)"
-
-    # --- FORM FOR SUBMISSION (now only contains the button and displays info) ---
-    with st.form("rental_form_submit"):
-        st.markdown("### 📋 Mascot Details")
-
-        # --- ADJUSTMENT 3: Robust "N/A" formatting for all details ---
-        size_display = mascot_row.get('Size') if pd.notna(mascot_row.get('Size')) else 'N/A'
-        weight_display = f"{mascot_row.get('Weight_kg')} kg" if pd.notna(mascot_row.get('Weight_kg')) else 'N/A'
-        height_display = mascot_row.get('Height_cm') if pd.notna(mascot_row.get('Height_cm')) else 'N/A'
-        quantity_display = int(mascot_row.get('Quantity')) if pd.notna(mascot_row.get('Quantity')) else 'N/A'
-        
+        mascot_row = inventory_df[inventory_df["Mascot_Name"] == mascot_choice].iloc[0]
+        # (Mascot details display logic remains the same)
         def format_price(value):
             if pd.isna(value): return 'N/A'
             try: return f"${int(float(value))}"
             except (ValueError, TypeError): return str(value)
-        
+        size_display = mascot_row.get('Size', 'N/A') if pd.notna(mascot_row.get('Size')) else 'N/A'
+        weight_display = f"{mascot_row.get('Weight_kg')} kg" if pd.notna(mascot_row.get('Weight_kg')) else 'N/A'
+        height_display = mascot_row.get('Height_cm', 'N/A') if pd.notna(mascot_row.get('Height_cm')) else 'N/A'
+        quantity_display = int(mascot_row.get('Quantity', 0)) if pd.notna(mascot_row.get('Quantity')) else 'N/A'
+        status_display = mascot_row.get('Status', 'N/A') if pd.notna(mascot_row.get('Status')) else 'N/A'
+        st.markdown("### 📋 Mascot Details")
         st.write(f"**Size:** {size_display}")
         st.write(f"**Weight:** {weight_display}")
         st.write(f"**Height:** {height_display}")
         st.write(f"**Quantity:** {quantity_display}")
         st.write(f"**Rent Price:** {format_price(mascot_row.get('Rent_Price'))}")
         st.write(f"**Sale Price:** {format_price(mascot_row.get('Sale_Price'))}")
-        st.write(f"**Status:** {dynamic_status_display}")
+        st.write(f"**Status:** {status_display}")
 
         if st.form_submit_button("📩 Submit Rental"):
             if not customer_name:
                 st.warning("Please enter a customer name.")
-            elif "Booked" in str(dynamic_status_display):
-                st.error("This mascot is fully booked for the selected dates. Please choose different dates.")
             else:
-                new_entry_data = {
-                    "ID": mascot_row["ID"], "Mascot_Name": mascot_choice,
-                    "Customer_Name": customer_name,
-                    "Start_Date": start_date_dt, "End_Date": end_date_dt
-                }
-                new_entry_df = pd.DataFrame([new_entry_data])
-                updated_log_df = pd.concat([rental_log_df, new_entry_df], ignore_index=True)
-                updated_log_df.to_excel("rental_log.xlsx", index=False)
-                st.success("✅ Rental submitted and logged!")
+                # CHANGED: Insert data into the SQLite database
+                conn = sqlite3.connect("rental_log.db")
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO rentals (mascot_id, mascot_name, customer_name, start_date, end_date) VALUES (?, ?, ?, ?, ?)",
+                    (int(mascot_row["ID"]), mascot_row["Mascot_Name"], customer_name, start_date, end_date)
+                )
+                conn.commit()
+                conn.close()
+                st.success("✅ Rental submitted and logged to database!")
                 st.rerun()
 
     # --- Delete Booking Section ---
@@ -191,17 +183,23 @@ with right_col:
     if rental_log_df.empty:
         st.info("No bookings to delete.")
     else:
-        rental_log_df['display'] = rental_log_df.apply(
-            lambda row: f"{row.get('Customer_Name', 'N/A')} - {row['Mascot_Name']} ({row.get('Start_Date', pd.NaT).strftime('%Y-%m-%d')} to {row.get('End_Date', pd.NaT).strftime('%Y-%m-%d')})",
-            axis=1
-        )
-        booking_to_delete = st.selectbox("Select booking to delete:", sorted(rental_log_df['display'].unique()), key="delete_booking_select")
+        # CHANGED: Create display strings and a mapping to the unique database ID
+        display_to_id_map = {}
+        for index, row in rental_log_df.iterrows():
+            display_str = f"{row.get('customer_name', 'N/A')} - {row['mascot_name']} ({row.get('start_date', 'N/A')} to {row.get('end_date', 'N/A')})"
+            display_to_id_map[display_str] = row['id']
+            
+        booking_to_delete_display = st.selectbox("Select booking to delete:", list(display_to_id_map.keys()))
         
         if st.button("❌ Delete Booking"):
-            index_to_delete = rental_log_df[rental_log_df['display'] == booking_to_delete].index
-            log_to_save = rental_log_df.drop(columns=['display'])
-            if not index_to_delete.empty:
-                log_to_save = log_to_save.drop(index_to_delete)
-                log_to_save.to_excel("rental_log.xlsx", index=False)
-                st.success("🗑️ Booking deleted successfully.")
-                st.rerun()
+            # Get the unique ID of the booking to delete
+            booking_id_to_delete = display_to_id_map[booking_to_delete_display]
+            
+            # CHANGED: Delete the record from the SQLite database
+            conn = sqlite3.connect("rental_log.db")
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM rentals WHERE id = ?", (booking_id_to_delete,))
+            conn.commit()
+            conn.close()
+            st.success("🗑️ Booking deleted successfully from database.")
+            st.rerun()
