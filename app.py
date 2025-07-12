@@ -36,12 +36,13 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── top header + logo ───
-hdr_logo, hdr_title = st.columns([1, 9], gap="small")
-with hdr_logo:
-    st.image("logo.png", width=200)
-with hdr_title:
+# ─── top header: title in the middle, logo on the right ───
+col1, col2, col3 = st.columns([1, 8, 1], gap="small")
+with col2:
     st.title("📅 Baba Jina Mascot Rental Calendar")
+with col3:
+    # use a high-res @2x image so it stays crisp
+    st.image("logo.png", width=120)
 
 # --- Data loading & core functions ---
 @st.cache_data
