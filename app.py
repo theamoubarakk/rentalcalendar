@@ -29,6 +29,13 @@ import sqlite3
 # --- Configuration and Core Functions ---
 st.set_page_config(layout="wide")
 
+# right after your st.set_page_config(layout="wide")
+header_col, logo_col = st.columns([9, 1], gap="small")
+with header_col:
+    st.title("📅 Baba Jina Mascot Rental Calendar")
+with logo_col:
+    st.image("path/to/your/logo.png", width=80)
+
 @st.cache_data
 def load_inventory_from_excel(file_path="cleaned_rentals.xlsx"):
     try:
