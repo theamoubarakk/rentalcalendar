@@ -32,7 +32,7 @@ with hdr_title:
     st.markdown("### 📅 Baba Jina Mascot Rental Calendar")
 with hdr_logo:
     # use a 2× resolution file, then display at 200px wide
-    st.image("logo@2x.png", width=200)
+    st.image("logo.png", width=200)
 
 
 # --- Data loading & core functions ---
