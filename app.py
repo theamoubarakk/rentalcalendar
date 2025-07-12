@@ -254,7 +254,6 @@ with right_col:
         st.write(f"*Quantity:* {quantity_disp}")
         st.write(f"*Rent Price:* {rent_disp}")
         st.write(f"*Sale Price:* {sale_disp}")
-    st.write(f"*Status:* {status_disp}")
 
     # 5) Delete & Download moved under right column
     st.markdown("---")
