@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import calendar
 import sqlite3
 
-# ─── remove white-space and collapse header margins ───
+# ─────────── remove white‐space ───────────
 st.markdown(
     """
     <style>
@@ -31,6 +31,7 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
+# ─── CUSTOM HEADER (Streamlit columns) ───
 hdr_left, hdr_right = st.columns([9, 1], gap="small")
 with hdr_left:
     st.title("📅 Baba Jina Mascot Rental Calendar")
@@ -104,17 +105,12 @@ rental_log_df = load_rental_log()
 if inventory_df.empty:
     st.stop()
 
-# --- Main two-column layout ---
+# --- Main two‐column layout ---
 left_col, right_col = st.columns([3,2], gap="large")
 
 # LEFT: Calendar
 with left_col:
-    # <--- Here’s our pulled-up heading:
-    st.markdown(
-        "<h3 style='margin:0; margin-top:-1rem;'>🗓️ Monthly Calendar</h3>",
-        unsafe_allow_html=True,
-    )
-
+    st.markdown("### 🗓️ Monthly Calendar")
     c1, c2 = st.columns(2)
     with c1:
         choices    = ["All"] + sorted(inventory_df["Mascot_Name"])
@@ -127,8 +123,11 @@ with left_col:
         df_log = df_log[df_log["mascot_name"] == sel_mascot]
 
     start = datetime(month_sel.year, month_sel.month, 1)
-    end   = datetime(month_sel.year, month_sel.month,
-                     calendar.monthrange(month_sel.year, month_sel.month)[1])
+    end   = datetime(
+        month_sel.year,
+        month_sel.month,
+        calendar.monthrange(month_sel.year, month_sel.month)[1]
+    )
     days = pd.date_range(start, end)
     cal  = pd.DataFrame({"Date": days})
 
@@ -151,26 +150,22 @@ with left_col:
     for week in calendar.monthcalendar(month_sel.year, month_sel.month):
         cols = st.columns(7)
         for i, day in enumerate(week):
-            if day == 0: continue
+            if day == 0:
+                continue
             d      = datetime(month_sel.year, month_sel.month, day)
             txt, tip = cal.loc[cal["Date"]==d, "ST"].iloc[0]
             bg     = "#f9e5e5" if txt.startswith("❌") else "#e6ffea"
             icon   = txt.split()[0]
             cols[i].markdown(
-                f"<div title='{tip}' style='background:{bg};padding:8px;"
-                "border-radius:8px;text-align:center;min-height:70px;'>"
+                f"<div title='{tip}' style='background:{bg};"
+                "padding:8px;border-radius:8px;text-align:center;min-height:70px;'>"
                 f"<strong>{day}</strong><br>{icon}</div>",
                 unsafe_allow_html=True
             )
 
 # RIGHT: Form, details, delete/download
 with right_col:
-    # <--- And here’s the pulled-up New Rental Entry:
-    st.markdown(
-        "<h3 style='margin:0; margin-top:-1rem;'>📌 New Rental Entry</h3>",
-        unsafe_allow_html=True,
-    )
-
+    st.markdown("### 📌 New Rental Entry")
     choice = st.selectbox("Select a mascot:", sorted(inventory_df["Mascot_Name"]))
     with st.form("rent_form"):
         cn, ph = st.columns(2)
@@ -192,7 +187,7 @@ with right_col:
             st.warning("End date cannot be before start date.")
         else:
             sdt   = datetime.combine(sd_in, datetime.min.time())
-            edt   = datetime.combine(ed_in,   datetime.min.time())
+            edt   = datetime.combine(ed_in, datetime.min.time())
             row   = inventory_df.query("Mascot_Name==@choice").iloc[0]
             total = int(row.Quantity)
             used  = check_availability(rental_log_df, choice, sdt, edt)
@@ -202,7 +197,8 @@ with right_col:
                 conn = sqlite3.connect("rental_log.db")
                 cur  = conn.cursor()
                 cur.execute(
-                    "INSERT INTO rentals (mascot_id,mascot_name,customer_name,contact_phone,start_date,end_date) VALUES (?,?,?,?,?,?)",
+                    "INSERT INTO rentals (mascot_id,mascot_name,customer_name,"
+                    "contact_phone,start_date,end_date) VALUES (?,?,?,?,?,?)",
                     (int(row.ID), choice, customer, phone, sd_in, ed_in)
                 )
                 conn.commit()
@@ -210,7 +206,6 @@ with right_col:
                 st.success(f"✅ Rental submitted! ({used+1}/{total})")
                 st.experimental_rerun()
 
-    # — Mascot Details —
     md = inventory_df.query("Mascot_Name==@choice").iloc[0]
     st.markdown("### 📋 Mascot Details")
     d1, d2 = st.columns(2)
@@ -223,20 +218,19 @@ with right_col:
         st.write(f"*Rent Price:* ${md.Rent_Price}")
         st.write(f"*Sale Price:* ${md.Sale_Price}")
 
-    # — Delete & Download —
     st.markdown("---")
     dc, dl = st.columns(2)
     with dc:
-        st.markdown("### 🗑️ Delete Rental Booking")
+        st.markdown("### 🗑️ Delete Rental")
         if rental_log_df.empty:
-            st.info("No bookings to delete.")
+            st.info("No bookings.")
         else:
             opts = {
-                f"{r.customer_name} – {r.mascot_name} ({r.start_date.date()} to {r.end_date.date()})": r.id
+                f"{r.customer_name} - {r.mascot_name} ({r.start_date.date()}→{r.end_date.date()})": r.id
                 for _, r in rental_log_df.iterrows()
             }
-            sel = st.selectbox("Select booking to delete:", list(opts.keys()), key="del")
-            if st.button("❌ Delete Booking"):
+            sel = st.selectbox("Select booking to delete:", list(opts.keys()))
+            if st.button("❌ Delete"):
                 conn = sqlite3.connect("rental_log.db")
                 conn.execute("DELETE FROM rentals WHERE id = ?", (opts[sel],))
                 conn.commit()
@@ -251,7 +245,7 @@ with right_col:
                 "Download Log as CSV",
                 data=csv,
                 file_name=f"rental_log_{datetime.today().date()}.csv",
-                mime="text/csv",
+                mime="text/csv"
             )
         else:
             st.info("No rental log data to download.")
