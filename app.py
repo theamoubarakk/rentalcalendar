@@ -31,22 +31,11 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── CUSTOM HEADER (flex: baseline align) ───
-st.markdown(
-    """
-    <div style="
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-      padding: 0;
-    ">
-      <h1 style="margin: 0; padding: 0;">📅 Baba Jina Mascot Rental Calendar</h1>
-      <img src="logo.png" style="height: 2.5rem; margin: 0; padding: 0;" />
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+hdr_left, hdr_right = st.columns([9, 1], gap="small")
+with hdr_left:
+    st.title("📅 Baba Jina Mascot Rental Calendar")
+with hdr_right:
+    st.image("logo.png", width=200)
 
 # --- Data loading & core functions ---
 @st.cache_data
