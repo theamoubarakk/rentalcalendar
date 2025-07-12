@@ -84,7 +84,7 @@ if inventory_df.empty:
 left_col, right_col = st.columns([3, 2], gap="large")
 
 # ==============================================================================
-# LEFT COLUMN: Calendar, Delete, and Download (UNCHANGED)
+# LEFT COLUMN: Calendar (delete/download removed)
 # ==============================================================================
 with left_col:
     st.markdown("### 🗓️ Monthly Calendar")
@@ -151,42 +151,9 @@ with left_col:
                       <div style='font-size:0.9em;word-wrap:break-word;'>{icon} {text[0] if text else ''}</div>
                     </div>""", unsafe_allow_html=True)
 
-    st.markdown("---")
-    delete_col, download_col = st.columns(2)
-    with delete_col:
-        st.markdown("### 🗑️ Delete Rental Booking")
-        if rental_log_df.empty:
-            st.info("No bookings to delete.")
-        else:
-            display_to_id_map = {
-                f"{r['customer_name']} - {r['mascot_name']} ({r['start_date'].date()} to {r['end_date'].date()})": r["id"]
-                for _, r in rental_log_df.iterrows()
-            }
-            sel = st.selectbox("Select booking to delete:", list(display_to_id_map.keys()))
-            if st.button("❌ Delete Booking"):
-                conn = sqlite3.connect("rental_log.db")
-                c = conn.cursor()
-                c.execute("DELETE FROM rentals WHERE id = ?", (display_to_id_map[sel],))
-                conn.commit()
-                conn.close()
-                st.success("🗑️ Booking deleted successfully.")
-                st.rerun()
-    with download_col:
-        st.markdown("### 📥 Download Rental Log")
-        if not rental_log_df.empty:
-            csv = rental_log_df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-               "Download Log as CSV",
-               data=csv,
-               file_name=f"rental_log_{datetime.today().date()}.csv",
-               mime='text/csv',
-            )
-        else:
-            st.info("No rental log data to download.")
-
 
 # ==============================================================================
-# RIGHT COLUMN: New Rental Entry + Inline Messages + Details
+# RIGHT COLUMN: New Rental Entry + Inline Messages + Details + Delete/Download
 # ==============================================================================
 with right_col:
     st.markdown("### 📌 New Rental Entry")
@@ -266,3 +233,37 @@ with right_col:
         st.write(f"*Rent Price:* {rent_disp}")
         st.write(f"*Sale Price:* {sale_disp}")
     st.write(f"*Status:* {status_disp}")
+
+    # 5) Delete & Download moved under right column
+    st.markdown("---")
+    delete_col, download_col = st.columns(2)
+    with delete_col:
+        st.markdown("### 🗑️ Delete Rental Booking")
+        if rental_log_df.empty:
+            st.info("No bookings to delete.")
+        else:
+            display_to_id_map = {
+                f"{r['customer_name']} - {r['mascot_name']} ({r['start_date'].date()} to {r['end_date'].date()})": r["id"]
+                for _, r in rental_log_df.iterrows()
+            }
+            sel = st.selectbox("Select booking to delete:", list(display_to_id_map.keys()), key="del")
+            if st.button("❌ Delete Booking"):
+                conn = sqlite3.connect("rental_log.db")
+                c = conn.cursor()
+                c.execute("DELETE FROM rentals WHERE id = ?", (display_to_id_map[sel],))
+                conn.commit()
+                conn.close()
+                st.success("🗑️ Booking deleted successfully.")
+                st.rerun()
+    with download_col:
+        st.markdown("### 📥 Download Rental Log")
+        if not rental_log_df.empty:
+            csv = rental_log_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+               "Download Log as CSV",
+               data=csv,
+               file_name=f"rental_log_{datetime.today().date()}.csv",
+               mime="text/csv",
+            )
+        else:
+            st.info("No rental log data to download.")
