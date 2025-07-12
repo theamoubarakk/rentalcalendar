@@ -31,22 +31,12 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── CUSTOM HEADER (flex‐box) ───
-st.markdown(
-    """
-    <div style="
-         display: flex;
-         align-items: center;
-         justify-content: space-between;
-         margin-bottom: 1rem;
-         padding: 0;
-         ">
-      <h1 style="margin: 0; padding: 0;">📅 Baba Jina Mascot Rental Calendar</h1>
-      <img src="logo.png" width="200" style="margin: 0; padding: 0;" />
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+# ─── CUSTOM HEADER (Streamlit columns) ───
+hdr_left, hdr_right = st.columns([9, 1], gap="small")
+with hdr_left:
+    st.title("📅 Baba Jina Mascot Rental Calendar")
+with hdr_right:
+    st.image("logo.png", width=200)
 
 # --- Data loading & core functions ---
 @st.cache_data
@@ -123,18 +113,21 @@ with left_col:
     st.markdown("### 🗓️ Monthly Calendar")
     c1, c2 = st.columns(2)
     with c1:
-        choices = ["All"] + sorted(inventory_df["Mascot_Name"])
+        choices    = ["All"] + sorted(inventory_df["Mascot_Name"])
         sel_mascot = st.selectbox("Filter by Mascot:", choices)
     with c2:
-        month_sel = st.date_input("Select Month:", value=datetime.today().replace(day=1))
+        month_sel  = st.date_input("Select Month:", value=datetime.today().replace(day=1))
 
     df_log = rental_log_df.copy()
     if sel_mascot != "All":
         df_log = df_log[df_log["mascot_name"] == sel_mascot]
 
     start = datetime(month_sel.year, month_sel.month, 1)
-    end   = datetime(month_sel.year, month_sel.month,
-                     calendar.monthrange(month_sel.year, month_sel.month)[1])
+    end   = datetime(
+        month_sel.year,
+        month_sel.month,
+        calendar.monthrange(month_sel.year, month_sel.month)[1]
+    )
     days = pd.date_range(start, end)
     cal  = pd.DataFrame({"Date": days})
 
@@ -149,7 +142,7 @@ with left_col:
     cal["ST"] = cal["Date"].apply(day_status)
     st.markdown("<hr style='margin:0.5rem 0;'>", unsafe_allow_html=True)
 
-    wk = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    wk  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
     hdr = st.columns(7)
     for i, wd in enumerate(wk):
         hdr[i].markdown(f"**{wd}**", unsafe_allow_html=True)
@@ -159,12 +152,13 @@ with left_col:
         for i, day in enumerate(week):
             if day == 0:
                 continue
-            d = datetime(month_sel.year, month_sel.month, day)
-            txt, tip = cal.loc[cal["Date"]==d,"ST"].iloc[0]
-            bg = "#f9e5e5" if txt.startswith("❌") else "#e6ffea"
-            icon = txt.split()[0]
+            d      = datetime(month_sel.year, month_sel.month, day)
+            txt, tip = cal.loc[cal["Date"]==d, "ST"].iloc[0]
+            bg     = "#f9e5e5" if txt.startswith("❌") else "#e6ffea"
+            icon   = txt.split()[0]
             cols[i].markdown(
-                f"<div title='{tip}' style='background:{bg};padding:8px;border-radius:8px;text-align:center;min-height:70px;'>"
+                f"<div title='{tip}' style='background:{bg};"
+                "padding:8px;border-radius:8px;text-align:center;min-height:70px;'>"
                 f"<strong>{day}</strong><br>{icon}</div>",
                 unsafe_allow_html=True
             )
@@ -178,7 +172,7 @@ with right_col:
         with cn:
             customer = st.text_input("Customer Name:")
         with ph:
-            phone   = st.text_input("Contact Phone Number:")
+            phone    = st.text_input("Contact Phone Number:")
         sd, ed = st.columns(2)
         with sd:
             sd_in = st.date_input("Start Date", value=datetime.today())
@@ -203,7 +197,8 @@ with right_col:
                 conn = sqlite3.connect("rental_log.db")
                 cur  = conn.cursor()
                 cur.execute(
-                    "INSERT INTO rentals (mascot_id,mascot_name,customer_name,contact_phone,start_date,end_date) VALUES (?,?,?,?,?,?)",
+                    "INSERT INTO rentals (mascot_id,mascot_name,customer_name,"
+                    "contact_phone,start_date,end_date) VALUES (?,?,?,?,?,?)",
                     (int(row.ID), choice, customer, phone, sd_in, ed_in)
                 )
                 conn.commit()
