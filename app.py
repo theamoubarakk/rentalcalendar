@@ -98,27 +98,20 @@ with left_col:
     date_range = pd.date_range(start=month_start, end=month_end)
     calendar_df = pd.DataFrame({"Date": date_range})
 
-    # --- CORRECTED: This function now sanitizes the tooltip data ---
     def get_booking_status(date):
         booked = filtered_log[(filtered_log["start_date"] <= date) & (filtered_log["end_date"] >= date)]
-        
         if booked.empty:
             return ("✅ Available", "This day is available for booking.")
         else:
             display_text = f"❌ {', '.join(booked['mascot_name'].unique())}"
-            
             tooltip_parts = []
             for _, row in booked.iterrows():
-                # Sanitize each piece of data by replacing double quotes
                 mascot = str(row['mascot_name']).replace('"', '"')
                 customer = str(row.get('customer_name', 'N/A')).replace('"', '"')
                 phone = str(row.get('contact_phone', 'N/A')).replace('"', '"')
-                
                 tooltip_parts.append(f"{mascot}: {customer} ({phone})")
-            
-            # Use a proper newline join instead of a literal line break
-            tooltip_text = "\n".join(tooltip_parts)
-            
+            tooltip_text = "
+".join(tooltip_parts)
             return (display_text, tooltip_text)
 
     calendar_df["StatusTuple"] = calendar_df["Date"].apply(get_booking_status)
@@ -135,10 +128,8 @@ with left_col:
             if day_num != 0:
                 date = datetime(month_filter.year, month_filter.month, day_num)
                 status_text, tooltip_info = calendar_df.loc[calendar_df["Date"] == date, "StatusTuple"].iloc[0]
-                
                 bg_color = "#f9e5e5" if "❌" in status_text else "#e6ffea"
                 icon, *text = status_text.split(" ", 1)
-                
                 cols[i].markdown(f"""
                     <div title="{tooltip_info}" style='background-color:{bg_color};border-radius:10px;padding:10px;text-align:center;
                                 box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:8px;min-height:80px;'>
@@ -183,7 +174,6 @@ with left_col:
         else:
             st.info("No rental log data to download.")
 
-
 # ==============================================================================
 # RIGHT COLUMN: New Entry Form Only
 # ==============================================================================
@@ -202,19 +192,29 @@ with right_col:
             if pd.isna(value): return 'N/A'
             try: return f"${int(float(value))}"
             except (ValueError, TypeError): return str(value)
+            
         size_display = mascot_row.get('Size', 'N/A') if pd.notna(mascot_row.get('Size')) else 'N/A'
         weight_display = f"{mascot_row.get('Weight_kg')} kg" if pd.notna(mascot_row.get('Weight_kg')) else 'N/A'
         height_display = mascot_row.get('Height_cm', 'N/A') if pd.notna(mascot_row.get('Height_cm')) else 'N/A'
-        quantity_display = int(mascot_row.get('Quantity', 0)) if pd.notna(mascot_row.get('Quantity')) else 'N/A'
-        status_display = mascot_row.get('Status', 'N/A') if pd.notna(mascot_row.get('Status')) else 'N/A'
+        
         st.markdown("### 📋 Mascot Details")
-        st.write(f"*Size:* {size_display}")
-        st.write(f"*Weight:* {weight_display}")
-        st.write(f"*Height:* {height_display}")
-        st.write(f"*Quantity:* {quantity_display}")
-        st.write(f"*Rent Price:* {format_price(mascot_row.get('Rent_Price'))}")
-        st.write(f"*Sale Price:* {format_price(mascot_row.get('Sale_Price'))}")
-        st.write(f"*Status:* {status_display}")
+        st.write(f"**Size:** {size_display}")
+        st.write(f"**Weight:** {weight_display}")
+        st.write(f"**Height:** {height_display}")
+        
+        # --- NEW: Horizontal layout for Quantity and Prices ---
+        qty_col, rent_col, sale_col = st.columns(3)
+        
+        with qty_col:
+            st.metric(label="Quantity", value=int(mascot_row.get('Quantity', 0)))
+        
+        with rent_col:
+            st.metric(label="Rent Price", value=format_price(mascot_row.get('Rent_Price')))
+            
+        with sale_col:
+            st.metric(label="Sale Price", value=format_price(mascot_row.get('Sale_Price')))
+        
+        # --- REMOVED: The "Status" field is no longer displayed ---
 
         if st.form_submit_button("📩 Submit Rental"):
             if not customer_name:
