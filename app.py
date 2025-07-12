@@ -25,7 +25,7 @@ st.markdown(
       }
       /* pull ALL H3s even tighter */
       .stMarkdown h3 {
-        margin-top: -3 !important;
+        margin-top: -4 !important;
       }
     </style>
     """,
