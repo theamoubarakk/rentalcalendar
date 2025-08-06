@@ -42,13 +42,13 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── Combined Title + Bigger Logo ───
+# ─── Final Header with Large Logo ───
 logo_base64 = get_image_base64("logo.png")
 st.markdown(
     f"""
-    <div style="display: flex; align-items: center; gap: 1.2rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
         <h1 style="margin: 0; font-size: 2.3rem;">📅 Baba Jina Mascot Rental Calendar</h1>
-        <img src="data:image/png;base64,{logo_base64}" style="height: 90px;" />
+        <img src="data:image/png;base64,{logo_base64}" style="height: 130px;" />
     </div>
     """,
     unsafe_allow_html=True
