@@ -33,16 +33,13 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── Custom Header with Inline Logo ───
-st.markdown(
-    """
-    <div style='display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;'>
-        <h1 style='margin: 0; font-size: 2.2rem;'>📅 Baba Jina Mascot Rental Calendar</h1>
-        <img src='logo.png' style='height: 55px;' />
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# ─── Title + Logo (Side-by-Side, Final Fix) ───
+title_col, logo_col = st.columns([7, 1])
+with title_col:
+    st.markdown("<h1 style='margin-bottom: 0.3rem;'>📅 Baba Jina Mascot Rental Calendar</h1>", unsafe_allow_html=True)
+with logo_col:
+    st.image("logo.png", width=100)
+
 
 
 
