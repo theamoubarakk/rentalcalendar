@@ -33,12 +33,17 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── CUSTOM HEADER (Streamlit columns) ───
-header_col1, header_col2 = st.columns([8, 1], gap="small")
-with header_col1:
-    st.markdown("<h1 style='margin-bottom: 0.5rem;'>📅 Baba Jina Mascot Rental Calendar</h1>", unsafe_allow_html=True)
-with header_col2:
-    st.image("logo.png", width=140)
+# ─── Custom Header with Inline Logo ───
+st.markdown(
+    """
+    <div style='display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;'>
+        <h1 style='margin: 0; font-size: 2.2rem;'>📅 Baba Jina Mascot Rental Calendar</h1>
+        <img src='logo.png' style='height: 55px;' />
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 
 
 # --- Data loading & core functions ---
