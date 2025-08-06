@@ -33,12 +33,15 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── Title + Logo (Side-by-Side, Final Fix) ───
-title_col, logo_col = st.columns([7, 1])
-with title_col:
-    st.markdown("<h1 style='margin-bottom: 0.3rem;'>📅 Baba Jina Mascot Rental Calendar</h1>", unsafe_allow_html=True)
-with logo_col:
-    st.image("logo.png", width=100)
+# ─── Combined Title + Logo on the Left ───
+title_container = st.container()
+with title_container:
+    col1, col2 = st.columns([1, 0.1])
+    with col1:
+        st.markdown("<h1 style='margin-bottom: 0;'>📅 Baba Jina Mascot Rental Calendar</h1>", unsafe_allow_html=True)
+    with col2:
+        st.image("logo.png", width=80)
+
 
 
 
