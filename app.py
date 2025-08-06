@@ -48,7 +48,7 @@ st.markdown(
     f"""
     <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
         <h1 style="margin: 0; font-size: 2.3rem;">📅 Baba Jina Mascot Rental Calendar</h1>
-        <img src="data:image/png;base64,{logo_base64}" style="height: 130px;" />
+        <img src="data:image/png;base64,{logo_base64}" style="height: 200px;" />
     </div>
     """,
     unsafe_allow_html=True
