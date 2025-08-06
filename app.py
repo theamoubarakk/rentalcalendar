@@ -4,6 +4,15 @@ from datetime import datetime
 import calendar
 import sqlite3
 
+
+import base64
+
+def get_image_base64(file_path):
+    with open(file_path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+
 # ─────────── remove white‐space ───────────
 # ─────────── adjusted CSS to fix title cropping ───────────
 st.markdown(
@@ -33,18 +42,17 @@ st.markdown(
 
 st.set_page_config(layout="wide")
 
-# ─── Combined Title + Logo on the Left ───
-title_container = st.container()
-with title_container:
-    col1, col2 = st.columns([1, 0.1])
-    with col1:
-        st.markdown("<h1 style='margin-bottom: 0;'>📅 Baba Jina Mascot Rental Calendar</h1>", unsafe_allow_html=True)
-    with col2:
-        st.image("logo.png", width=80)
-
-
-
-
+# ─── Combined Left-Aligned Title + Logo ───
+logo_base64 = get_image_base64("logo.png")
+st.markdown(
+    f"""
+    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+        <h1 style="margin: 0;">📅 Baba Jina Mascot Rental Calendar</h1>
+        <img src="data:image/png;base64,{logo_base64}" style="height: 55px;" />
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- Data loading & core functions ---
 @st.cache_data
