@@ -34,11 +34,12 @@ st.markdown(
 st.set_page_config(layout="wide")
 
 # ─── CUSTOM HEADER (Streamlit columns) ───
-hdr_left, hdr_right = st.columns([9, 1], gap="small")
-with hdr_left:
-    st.title("📅 Baba Jina Mascot Rental Calendar")
-with hdr_right:
-    st.image("logo.png", width=200)
+header_col1, header_col2 = st.columns([8, 1], gap="small")
+with header_col1:
+    st.markdown("<h1 style='margin-bottom: 0.5rem;'>📅 Baba Jina Mascot Rental Calendar</h1>", unsafe_allow_html=True)
+with header_col2:
+    st.image("logo.png", width=140)
+
 
 # --- Data loading & core functions ---
 @st.cache_data
