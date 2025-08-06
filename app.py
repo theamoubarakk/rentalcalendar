@@ -5,18 +5,18 @@ import calendar
 import sqlite3
 
 # ─────────── remove white‐space ───────────
+# ─────────── adjusted CSS to fix title cropping ───────────
 st.markdown(
     """
     <style>
       .block-container {
-        padding-top: 0 !important;
+        padding-top: 1.2rem !important;  /* just enough for clean title display */
         padding-bottom: 0 !important;
       }
       .css-1avcm0n,
       .css-18e3th9 {
         margin-bottom: 0.25rem !important;
       }
-      /* collapse all markdown heading margins */
       .stMarkdown h1,
       .stMarkdown h2,
       .stMarkdown h3 {
@@ -27,6 +27,8 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+# ───────────────────────────────────────────────────────────
+
 # ─────────────────────────────────────────────
 
 st.set_page_config(layout="wide")
